@@ -1,0 +1,757 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Portal/Sector Render</title>
+
+    <script src="MapLoader.js"></script>
+
+    <script>
+            var ml = new Map();
+
+            ml.load('./data/alantest.map', function(){
+                console.log(ml);
+            });
+
+
+
+    </script>
+
+</head>
+<body>
+
+
+<canvas id="screen" width="320" height="240"
+        style="border:1px solid #000000; float: left">
+</canvas>
+
+<div id="status" style="float: left; margin: 5px; font-family: Arial; font-size: 14px">tests</div>
+
+<textarea id="formtext" cols="100" rows="30" style="display:none">
+vertex	0	0 6 28
+vertex	2	1 17.5
+vertex	5	4 6 18 21
+vertex	6.5	9 11 13 13.5 17.5
+vertex	7	5 7 8 9 11 13 13.5 15 17 19 21
+vertex	7.5	4 6
+vertex	10.5	4 6
+vertex	11	5 7 8 9 11 13 13.5 15 17 19 21
+vertex	11.5	9 11 13 13.5 17.5
+vertex	13	4 6 18 21
+vertex	16	1 17.5
+vertex	18	0 6 28
+
+sector	0 20	 3 14 29 49             -1 1 11 22
+sector	0 20	 17 15 14 3 9           -1 12 11 0 21
+sector	0 20	 41 42 43 44 50 49 40   -1 20 -1 3 -1 -1 22
+sector	0 14	 12 13 44 43 35 20      -1 21 -1 2 -1 4
+sector	0 12	 16 20 35 31            -1 -1 3 -1
+sector	16 28	 24 8 2 53 48 39        18 -1 7 -1 6 -1
+sector	16 28	 53 52 46 47 48         5 -1 8 10 -1
+sector	16 28	 1 2 8 7 6              23 -1 5 -1 10
+sector	16 36	 46 52 51 45            -1 6 -1 24
+sector	16 36	 25 26 28 27            24 -1 10 -1
+sector	16 26	 6 7 47 46 28 26        -1 7 -1 6 -1 9
+sector	2 20	 14 15 30 29            0 1 12 22
+sector	4 20	 15 17 32 30            11 1 13 22
+sector	6 20	 17 18 33 32            12 -1 14 -1
+sector	8 20	 18 19 34 33            13 19 15 20
+sector	10 24	 19 21 36 34            14 -1 16 -1
+sector	12 24	 21 22 37 36            15 -1 17 -1
+sector	14 28	 22 23 38 37            16 -1 18 -1
+sector	16 28	 23 24 39 38            17 -1 5 -1
+sector	8 14	 10 11 19 18            -1 21 -1 14
+sector	8 14	 33 34 42 41            -1 14 -1 2
+sector	0 20	 4 13 12 11 10 9 3      -1 -1 3 -1 19 -1 1
+sector	0 20	 29 30 32 40 49         0 11 12 -1 2
+sector	16 36	 1 6 5 0                -1 7 -1 24
+sector	16 36	 0 5 25 27 45 51        -1 23 -1 9 -1 8
+
+player	2 6	0	0
+</textarea>
+<button type="button" onclick="Initialise()" style="display:none">Import</button>
+
+</body>
+<script>
+
+    var SCREEN_WIDTH = 640;
+    var SCREEN_HEIGHT = 480;
+
+    document.getElementById('screen').width = SCREEN_WIDTH;
+    document.getElementById('screen').height = SCREEN_HEIGHT;
+
+    var buffer = document.getElementById('screen');
+    var buffer_context = buffer.getContext('2d');
+    var buffer_data = buffer_context.getImageData(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    var fov = 60;
+    var vfov = deg(2 * Math.atan(Math.tan(rad(fov)/2) * (SCREEN_HEIGHT/SCREEN_WIDTH)));
+    var projection_width = SCREEN_WIDTH;
+    var projection_centre = projection_width / 2;
+    var projection_height = SCREEN_HEIGHT;
+
+    var focal_length = projection_centre / Math.tan(rad(fov/2));
+
+
+    var map     = new MAP();
+    var player  = new PLAYER();
+
+
+    function Rotate2d(x, y, angle)
+    {
+        var rv = rad(angle);
+
+        //var rx1 = x * Math.cos(rv) - y * Math.sin(rv);
+        //var rz1 = y * Math.cos(rv) + x * Math.sin(rv);
+        var rx = x * Math.sin(rv) - y * Math.cos(rv);
+        var rz = x * Math.cos(rv) + y * Math.sin(rv);
+
+        return {x: rx, z: rz};
+    }
+
+    function project_wall(sector_height, z)
+    {
+        var heightA = (sector_height / z) *  focal_length;
+        var eyeHeight = player.height * 0.75;
+        //var player_z = objectZ = 0;
+        var base = (eyeHeight *2); // + player_z - objectZ) * 2;
+        var horizonOffset = (heightA - Math.floor(base / z * focal_length)) / 2;
+        var endA = parseInt((SCREEN_HEIGHT / 2 - horizonOffset) + heightA / 2);
+        return {height: heightA, y_bottom: endA};
+    }
+
+    function cross(x1, y1, x2, y2)
+    {
+        return x1*y2 - y1*x2;
+    }
+
+    function intersect2(x1,y1, x2,y2, x3,y3, x4,y4)
+    {
+        var x = vxs(vxs(x1, y1, x2, y2),  (x1) - (x2), vxs(x3, y3, x4, y4), (x3) - (x4)) / vxs((x1) - (x2), (y1) - (y2), (x3) - (x4), (y3) - (y4));
+        var y = vxs(vxs(x1, y1, x2, y2), (y1) - (y2), vxs(x3, y3, x4, y4), (y3) - (y4)) / vxs((x1) - (x2), (y1) - (y2), (x3) - (x4), (y3) - (y4));
+        return {x: x, y: y};
+;    }
+
+    function intersect(x1, y1, x2, y2, x3, y3, x4, y4)
+    {
+        var x = cross(x1, y1, x2, y2);
+        var y = cross(x3, y3, x4, y4);
+        var det = cross(x1-x2, y1-y2, x3-x4, y3-y4);
+        var cx = cross(x, x1-x2, y, x3-x4) / det;
+        var cy = cross(x, y1-y2, y, y3-y4) / det;
+
+        return {x: cx, y: cy};
+    }
+
+    function intersect_box(x0,y0, x1,y1, x2,y2, x3,y3)
+    {
+      //  console.log("Box = (%f, %f, %f, %f) and Box (%f, %f, %f, %f)",x0,y0, x1,y1, x2,y2, x3,y3);
+        return  (overlap(x0,x1,x2,x3) && overlap(y0,y1,y2,y3));
+    }
+
+    function overlap(a0,a1,b0,b1)
+    {
+        return (Math.min(a0,a1) <= Math.max(b0,b1) & Math.min(b0,b1) <= Math.max(a0,a1));
+    }
+
+
+    function point_side(px,py, x0,y0, x1,y1)
+    {
+        return vxs((x1)-(x0), (y1)-(y0), (px)-(x0), (py)-(y0));
+    }
+
+    function vxs(x0,y0, x1,y1)
+    {
+        return ((x0)*(y1) - (x1)*(y0));
+    }
+
+
+    function RenderSector(sectorId)
+    {
+        var sector = map.sectors[sectorId];
+        //var v2 = sector.vertices[sector.vertices.length-1], v1=0;
+
+        var mid = SCREEN_HEIGHT / 2;
+
+        for (var p=0; p<sector.vertices.length-1; p++)
+        {
+            var v1 = sector.vertices[p];
+            var v2 = sector.vertices[p+1];
+
+            var wall_colour = '#aaaaaa';
+            if (sector.neighbours[p] != -1) wall_colour = '#ff0000';
+
+            var vx1 = map.vertices[v1].x, vy1 = map.vertices[v1].y;
+            var vx2 = map.vertices[v2].x, vy2 = map.vertices[v2].y;
+
+            vx1 -= player.x; vy1 -= player.y;
+            vx2 -= player.x; vy2 -= player.y;
+
+            var r1 = Rotate2d(vx1, vy1, player.v);
+            var r2 = Rotate2d(vx2, vy2, player.v);
+
+            var sheight=sector.ceil*2;
+
+            if (r1.z > 0 || r2.z > 0)
+            {
+                var cp1 = intersect2(r1.x, r1.z, r2.x, r2.z, -0.0001, 0.0001, -20, 5);
+                var cp2 = intersect2(r1.x, r1.z, r2.x, r2.z,  0.0001, 0.0001, 20, 5);
+
+                if (r1.z <= 0.0001)
+                {
+                    if (cp1.y > 0) {
+                        r1.x = cp1.x;
+                        r1.z = cp1.y;
+                    } else {
+                        r1.x = cp2.x;
+                        r1.z = cp2.y;
+                    }
+                }
+
+                if (r2.z <= 0.0001)
+                {
+                    if (cp1.y > 0) {
+                        r2.x = cp1.x;
+                        r2.z = cp1.y;
+                    } else {
+                        r2.x = cp2.x;
+                        r2.z = cp2.y;
+                    }
+                }
+
+                var edge1 = project_wall(sheight, r1.z);
+                var edge2 = project_wall(sheight, r2.z);
+
+
+                var x1 = (-r1.x / r1.z) * focal_length;
+                var x2 = (-r2.x / r2.z) * focal_length;
+
+                var w_width = (x2 - x1)+1;
+
+                var  y_bottom = edge1.y_bottom;
+                var dy_bottom = (edge2.y_bottom - edge1.y_bottom) / w_width;
+
+                var  w_height = edge1.height;
+                var dw_height = (edge2.height - edge1.height) / w_width;
+
+                for (var wx=x1; wx < w_width; wx++)
+                {
+                 //   vline(wx, y_bottom, y_bottom - (w_height-1), wall_colour);
+
+                    y_bottom += dy_bottom;
+                    w_height += dw_height;
+                }
+
+
+                ///** WIREFRAME MODE -
+                line(x1, edge1.y_bottom - edge1.height, x2, edge2.y_bottom - edge2.height,wall_colour);
+                line(x1, edge1.y_bottom, x2, edge2.y_bottom,wall_colour);
+
+                line(x2, edge2.y_bottom - edge2.height, x2, edge2.y_bottom,wall_colour);
+                line(x1, edge1.y_bottom - edge1.height, x1, edge1.y_bottom,wall_colour);
+                // **/
+
+                /*
+                var h1 = (sheight / r1.z) * focal_length;
+                var h2 = (sheight / r2.z) * focal_length;
+
+
+                var y1a = mid - h1 / 2;
+                var y1b = mid + h1 / 2;
+
+                var y2a = mid - h2 / 2;
+                var y2b = mid + h2 / 2;
+
+                var h_inc = ((h2 - h1)+1) / ((x2 - x1)+1);
+
+                var h_cur = h1;
+                //console.log("Going from H1: %f   to    H2: %f", h1, h2);
+                //console.log("Height start = %f, inc = %f", h_cur, h_inc);
+
+                for (var x=x1; x<x2+1; x++)
+                {
+                    var y1 = mid - h_cur / 2;
+                    var y2 = mid + h_cur / 2;
+
+                    vline(x, y1, y2, wall_colour);
+
+                    h_cur += h_inc;
+
+                }
+                //console.log("Height end = %f", h_cur);
+                 line(x1, y1a, x2, y2a);
+                 line(x1, y1b, x2, y2b);
+                 line(x1, y1a, x1, y1b);
+                 line(x2, y2a, x2, y2b);*/
+
+            }
+
+
+
+
+          //  marker(x1, y1a);
+          //  marker(x1, y1b);
+          //  marker(x2, y2a);
+          //  marker(x2, y2b);
+
+
+            //line(160 - r1.x, 120 - r1.z, 160 - r2.x, 120 - r2.z);
+/*
+            var h1 =  (50/r1.z);
+            var h2 =  (50/r2.z);
+
+            var y1a = 120 - (h1/2);
+            var y1b = 120 + (h1/2);
+            var y2a = 120 + (h2/2);
+            var y2b = 120 + (h2/2);
+
+            line(r1.x, y1a, r2.x, y2a);
+            line(r1.x, y1b, r2.x, y2b);
+*/
+            /*
+
+             var tz1 = vx1 * Math.cos(rad(player.v)) + vy1 * Math.sin(rad(player.v));
+             var tz2 = vx2 * Math.cos(rad(player.v)) + vy2 * Math.sin(rad(player.v));
+
+             var tx1 = vx1 * Math.sin(rad(player.v)) - vy1 * Math.cos(rad(player.v));
+             var tx2 = vx2 * Math.sin(rad(player.v)) - vy2 * Math.cos(rad(player.v));
+
+             var xscale1 = 140 / tz1, yscale1 = 32 / tz1;
+             var xscale2 = 140 / tz2, yscale2 = 32 / tz2;
+
+             var x1 = (SCREEN_WIDTH / 2) + Math.round(-tx1 * xscale1);
+             var x2 = (SCREEN_WIDTH / 2) + Math.round(-tx2 * xscale2);
+
+             var yceil = sector.ceil - player.z;
+             var yfloor = sector.floor - player.z;
+
+
+             var y1a = SCREEN_HEIGHT / 2 + Math.round( -yceil * yscale1);
+             var y1b = SCREEN_HEIGHT / 2 + Math.round( -yfloor * yscale1);
+             var y2a = SCREEN_HEIGHT / 2 + Math.round( -yceil * yscale2);
+             var y2b = SCREEN_HEIGHT / 2 + Math.round( -yfloor * yscale2);
+
+             for(var x=x1; x<x2+1; x++)
+             {
+             var ya = (x-x1) * Math.round(y2a-y1a) / (x2-x1) + y1a;
+             var yb = (x-x1) * Math.round(y2b-y1b) / (x2-x1) + y1b;
+
+             var cya = clamp(ya, 0, 239);
+             var cyb = clamp(yb, 0, 239);
+
+             vline(x, 0, cya, '#ff0000');
+             vline(x, cyb, 239, '#00ff00');
+             vline(x, cya+1, cyb-1, '#0000ff');
+
+
+
+             }
+             */
+
+
+
+        }
+    }
+
+
+
+
+    function Render()
+    {
+        buffer_context.clearRect(0,0,buffer.width, buffer.height);
+
+        var sector = map.sectors[player.sector];
+
+
+        for (var s=0; s<sector.neighbours.length; s++)
+        {
+            //if (sector.neighbours[s] > -1) RenderSector(sector.neighbours[s]);
+        }
+
+        for (var t=0; t<map.sectors.length; t++)
+        {
+           RenderSector(t);
+        }
+
+
+
+
+        status();
+
+    }
+
+
+
+    function marker(x, y)
+    {
+        var radius = 3;
+        buffer_context.beginPath();
+        buffer_context.arc(x, y, radius, 0, 2 * Math.PI, false);
+        buffer_context.fillStyle = 'black';
+        buffer_context.fill();
+        //buffer_context.lineWidth = 5;
+        //buffer_context.strokeStyle = '#003300';
+        //buffer_context.stroke();
+    }
+
+    function vline(x,  y1, y2, color)
+    {
+        buffer_context.beginPath();
+        buffer_context.moveTo(x, y1);
+        buffer_context.lineTo(x, y2);
+        buffer_context.lineWidth = 1;
+        buffer_context.strokeStyle = color;
+        buffer_context.stroke();
+    }
+
+    function line(x1, y1, x2, y2, col)
+    {
+        if (!col) col = '#0000ff';
+        buffer_context.beginPath();
+        buffer_context.moveTo(x1, y1);
+        buffer_context.lineTo(x2, y2);
+        buffer_context.lineWidth = 1;
+        buffer_context.strokeStyle = col;
+        buffer_context.stroke();
+    }
+
+    function clamp(value, min, max)
+    {
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
+    }
+
+    function Initialise()
+    {
+        map = readData();
+
+        player.x = 2 * 10;
+        player.y = 9 * 10;
+        player.v = 0;
+
+        player.sector = 0;
+
+        var start = get_centre_of_sector(player.sector);
+
+        console.log("Sector %d centre = (%f, %f)", player.sector, start.x, start.y);
+
+
+        player.z = map.sectors[player.sector].floor + 5 * 10;
+
+        //window.addEventListener("keydown", move, true);
+        window.addEventListener('keyup', function(event) {Key.onKeyup(event);}, false);
+        window.addEventListener('keydown', function(event) {Key.onKeydown(event);}, false);
+        window.addEventListener('keydown', move, false);
+
+        Render();
+    }
+
+    function get_centre_of_sector(sec)
+    {
+        var sector = map.sectors[sec];
+
+        var pts = [];
+
+        for (var v=0; v<sector.vertices.length-1; v++)
+            pts.push({x: map.vertices[sector.vertices[v]].x, y: map.vertices[sector.vertices[v]].y});
+
+        return get_polygon_centroid(pts);
+
+    }
+
+
+    function get_polygon_centroid(pts) {
+        var twicearea=0,
+                x=0, y=0,
+                nPts = pts.length,
+                p1, p2, f;
+        for ( var i=0, j=nPts-1 ; i<nPts ; j=i++ ) {
+            p1 = pts[i]; p2 = pts[j];
+            f = p1.x*p2.y - p2.x*p1.y;
+            twicearea += f;
+            x += ( p1.x + p2.x ) * f;
+            y += ( p1.y + p2.y ) * f;
+        }
+        f = twicearea * 3;
+        return { x:x/f, y:y/f };
+    }
+
+
+    function status_clear()
+    {
+        document.getElementById("status").innerHTML = "";
+    }
+    function status_write(text)
+    {
+        document.getElementById("status").innerHTML += text+"<br/>";
+    }
+    function status()
+    {
+        status_clear();
+
+        status_write("<b>Player</b>");
+        status_write("X: "+player.x+", Y: "+player.y+", Z: "+player.z);
+        status_write("Angle: "+player.v);
+        status_write("Sector: "+player.sector);
+        var psec = "";
+        for(var t=0; t<map.sectors[player.sector].neighbours.length; t++)
+        {
+            if (map.sectors[player.sector].neighbours[t] != -1)
+            psec += map.sectors[player.sector].neighbours[t] +', ';
+        }
+        status_write("Potential vis sectors: "+psec);
+
+    }
+
+    function move_player(dx, dy)
+    {
+        var px = player.x, py = player.y;
+
+        var sector = map.sectors[player.sector];
+
+        for (var s=0; s<sector.vertices.length-1; s++)
+        {
+            var v1 = sector.vertices[s];
+            var v2 = sector.vertices[s+1];
+
+            if (sector.neighbours[s] >= 0)
+            {
+                //console.log("found a portal");
+                if (intersect_box(px, py, px+dx, py+dy,
+                                map.vertices[v1].x, map.vertices[v1].y,
+                                map.vertices[v2].x, map.vertices[v2].y))
+                {
+                    //console.log("passed box inter check");
+                    if (point_side(px+dx, py+dy,
+                                    map.vertices[v1].x, map.vertices[v1].y,
+                                    map.vertices[v2].x, map.vertices[v2].y))
+                    {
+                        player.sector = sector.neighbours[s];
+                        console.log("crossed into new sector %d", player.sector);
+                        break;
+
+                    }
+
+                }
+            }
+
+        }
+
+        player.x += dx;
+        player.y += dy;
+
+    }
+
+
+    function move(e)
+    {
+
+        var dx = 0, dy = 0;
+        var speed =10;
+
+        //console.log("Key = "+ e.keyCode);
+
+
+
+        if (e.keyCode == 189) // '-'
+        {
+            player.height -=2;
+        }
+
+        if (e.keyCode == 187) // '='
+        {
+            player.height += 2;
+        }
+
+
+        if (Key.isDown(Key.RIGHT))
+        {
+            player.v +=6;
+            //if (player_v >= 180) player_v = -(180-(player_v-180));
+            if (player.v > 359) player.v -= 360;
+        }
+
+        if (Key.isDown(Key.LEFT))
+        {
+            player.v -= 6;
+            //if (player_v < -180) player_v = 180 + (-player_v - 180);
+            if (player.v < 0) player.v += 360;
+        }
+
+        if (e.keyCode == 13)
+        {
+            P_CORRECTION_ON = !P_CORRECTION_ON;
+        }
+
+
+        if (Key.isDown(Key.UP))
+        {
+            var rads = rad((player.v));
+
+            dx = speed * Math.cos(rads);
+            dy = speed * Math.sin(rads);
+
+        }
+
+        if (Key.isDown(Key.DOWN))
+        {
+            var rads = rad((player.v));
+
+            dx = -(speed * Math.cos(rads));
+            dy = -(speed * Math.sin(rads));
+
+        }
+
+
+        if (dx || dy)
+        {
+            move_player(dx, dy);
+        }
+
+        //if (player.v < 0) player.v = 359;
+        //if (player.v > 359) player.v = 0;
+
+        //writeln(player.x+", "+player.y+", "+player.v);
+
+        Render();
+    }
+
+
+    var Key = {
+        _pressed: {},
+
+        LEFT: 37,
+        UP: 38,
+        RIGHT: 39,
+        DOWN: 40,
+
+        isDown: function(keyCode) {
+            return this._pressed[keyCode];
+        },
+
+        onKeydown: function(event) {
+            this._pressed[event.keyCode] = true;
+        },
+
+        onKeyup: function(event) {
+            delete this._pressed[event.keyCode];
+        }
+    };
+
+
+
+
+    function MAP()
+    {
+        this.vertices = [];
+        this.sectors = [];
+    }
+
+    function SECTOR()
+    {
+        this.floor = 0;
+        this.ceil = 0;
+        this.vertices = [];
+        this.neighbours = [];
+    }
+
+    function PLAYER()
+    {
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+        this.v = 0;
+        this.height = 20;
+        this.sector = 0;
+    }
+
+    function VERTEX()
+    {
+        this.x = 0;
+        this.y = 0;
+    }
+
+    function rad(d) { return d * (Math.PI / 180); }
+    function deg(r) { return r * (180 / Math.PI); }
+
+    function readData()
+    {
+        var map = new MAP();
+
+        var ft = document.getElementById("formtext");
+        var data = ft.value;
+        //console.log(data);
+        var lines = data.split('\n');
+        //console.log("lines = "+lines.length);
+
+        for (var l=0; l<lines.length; l++)
+        {
+            var line = lines[l].split('\t');
+            var y = 0;
+
+            if (line[0] == "vertex")
+            {
+                y = Number(line[1]) * 10;
+
+                var xs = line[2].split(" ");
+
+                for (var x=0; x<xs.length; x++){
+                    var v = new VERTEX();
+                    v.x = Number(xs[x]) * 10;
+                    v.y = y;
+                    map.vertices.push(v);
+                }
+            }
+
+
+            if (line[0] == "sector") {
+                var s = new SECTOR();
+
+                var heights = line[1].split(' ');
+
+                s.floor = Number(heights[0]);
+                s.ceil = Number(heights[1]);
+
+                do {
+                    line[2] = line[2].replace('   ', '  ')
+                } while (line[2].indexOf('   ') != -1);
+                do {
+                    line[2] = line[2].replace('  ', '_')
+                } while (line[2].indexOf('  ') != -1);
+
+                var secdef = line[2].split('_');
+
+                var walls = secdef[0].trim().split(' ');
+                var nextsec = secdef[1].trim().split(' ');
+
+                for (var t = 0; t < walls.length; t++)
+                    s.vertices.push(Number(walls[t]));
+
+                s.vertices.push(Number(walls[0])); // add the first vertex to the end so sector forms a loop and is easier to iterate with
+
+                for (var t = 0; t < nextsec.length; t++)
+                    s.neighbours.push(Number(nextsec[t]));
+
+                map.sectors.push(s);
+
+            }
+
+        }
+
+        //ft.value = JSON.stringify(map, null, 1);
+
+       // console.log(map);
+        return map;
+
+    }
+
+    Initialise();
+
+
+
+
+</script>
+</html>
+
+    

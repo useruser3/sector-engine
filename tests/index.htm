@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+
+
+
+
+</head>
+<body>
+
+
+<canvas id="screen" width="320" height="240"
+        style="border:1px solid #000000;">
+</canvas>
+
+<canvas id="rays" width="640" height="640"
+        style="border:1px solid #FF0000; display:none">
+</canvas>
+
+
+
+<div id="debug" style="width: 320px; height: 200px; border: 1px solid black">
+
+</div>
+
+</body>
+<script>
+
+    var buffer = document.getElementById('screen');
+    var buffer_rays = document.getElementById('rays');
+
+    var buffer_context = buffer.getContext('2d');
+    var buffer_context_rays = buffer_rays.getContext('2d');
+
+
+    var debug_el = document.getElementById('debug');
+
+    window.addEventListener("keydown", move, true);
+
+    var map = [
+        [1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,1], /* y=4 */
+        [1,0,0,0,0,0,0,0,0,1], /* y=5 */
+        [1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1]
+    ];
+
+    var UNIT_SIZE = 64;
+
+    var world = {
+        data: map,
+        width: map[0].length,
+        height: map.length,
+        max_x: map[0].length * UNIT_SIZE,
+        max_y: map.length * UNIT_SIZE,
+        unit: UNIT_SIZE,
+
+        within_bounds: function(world_x, world_y)
+        {
+            if (world_x < 0) return false;
+            if (world_x > this.max_x) return false;
+            if (world_y < 0) return false;
+            if (world_y > this.max_y) return false;
+
+            return true;
+        }
+    };
+
+    console.log(world);
+
+    var projection = {
+        width: 320,
+        height: 240,
+        fov: 60,
+        distance: function()
+        {
+            return (this.width / 2) / Math.tan((this.fov/2)*Math.PI/180);
+        }
+    };
+
+    var player = {
+        x: (4*64)+32,  // '32': player in middle of cell
+        y: (4*64)+32,
+        v: 270,
+        height: 32
+    };
+
+    console.log("Player location: "+player.x+", "+player.y+" - "+player.v);
+
+    for (var y=0; y<world.height; y++)
+    {
+        var s = y+") ";
+        for (var x=0; x<world.width; x++)
+        {
+            s+= world.data[y][x]+'.';
+        }
+        console.log(s);
+    }
+
+    console.log("Projection plane distance = "+projection.distance());
+
+    raycast();
+
+    function move(e)
+    {
+        if (e.keyCode == 39)
+        {
+            player.v += 3;
+        }
+
+        if (e.keyCode == 37)
+        {
+            player.v -=3;
+        }
+
+        if (e.keyCode == 38)
+        player.y -=3;
+
+        if (player.v < 0) player.v = 359;
+        if (player.v > 359) player.v = 0;
+
+        writeln(player.x+", "+player.y+", "+player.v);
+
+        raycast();
+    }
+
+    function pause(ms)
+    {
+        var date = new Date();
+        var curDate = null;
+
+        do { curDate = new Date(); }
+        while(curDate-date < ms);
+    }
+
+    function raycast()
+    {
+
+        buffer_context.clearRect(0,0,buffer.width, buffer.height);
+        buffer_context_rays.clearRect(0, 0, buffer_rays.width, buffer_rays.height);
+
+        var angle_inc = projection.fov / projection.width;
+        var ray_angle = player.v - (projection.fov / 2); // start angle
+
+        console.log("%d / %d = %f", projection.fov, projection.width, angle_inc);
+        console.log("start angle = %d", ray_angle);
+
+
+        if (ray_angle < 0) ray_angle += 360;
+
+        //-- Horizontal cast first --
+
+      //  console.log("ANGLE START: "+ray_angle);
+
+        //for each column on the screen, cast a ray tracing horiz intersections
+        for (var r= 0, w=projection.width; r<w; r++)
+        {
+            var ray_rads = ray_angle * (Math.PI / 180);
+
+
+
+            var Ya = 64;
+            var rayY = (Math.floor(player.y / 64) * 64) + 64;
+
+            if (ray_angle>= 0 && ray_angle < 180) // facing north
+            {
+                Ya = -64;
+                rayY = (Math.floor(player.y / 64) * 64) - 1;
+            }
+
+            //   A.x = Px + (Py-A.y)/tan(ALPHA);
+            var rayX = player.x + (player.y - rayY) / Math.tan(ray_rads);
+            var Xa = 64 / Math.tan(ray_rads);
+
+            if (ray_angle >= 90 && ray_angle <270)
+            {
+                if (Xa > 0) Xa = -Xa;
+            } else {
+                if (Xa < 0) Xa = -Xa;
+            }
+
+            if (r < 50){
+              // console.log("H [%d] Ray Start: (%f, %f)", r, rayX, rayY);
+             //  console.log("H [%d] Ray Inc: (%f, %f)", r, Xa, Ya);
+            }
+
+
+            // console.log("casting horz from: "+rayX+", "+rayY);
+var leak = false;
+
+            do{//
+                //buffer_context_rays.fillStyle = "#000000";
+
+              //  buffer_context_rays.fillRect(Math.floor(rayX), Math.floor(rayY),1,1);
+
+                if (!world.within_bounds(rayX, rayY))
+                {
+                    //alert("map leak!");
+                   // leak = true;
+                    rayX -= Xa; rayY -=Ya;
+                    break;
+                } else {
+
+                    if (is_solid2(rayX, rayY, ray_angle)) break;
+
+                }
+
+                rayX += Xa;
+                rayY += Ya;
+
+            } while(1);
+
+
+            var horz_x_diff = rayX - player.x;
+            var horz_y_diff = rayY - player.y;
+            var horz_dist = Math.sqrt((horz_x_diff * horz_x_diff) + (horz_y_diff * horz_y_diff));
+
+          //  var horz_dist = 999999;
+
+        //     /* SKIP VERT
+
+            if (ray_angle < 90 || ray_angle > 270) // facing right (east)
+            {
+                rayX = (Math.floor(player.x/64))*64;
+                rayY = Math.tan(ray_rads)*(rayX - player.x) + player.y;
+                Xa = 64;
+
+                //rayX = 64 + Math.floor(player.x / 64) * 64;
+                //rayY = player.y + (Math.tan(ray_rads) * (rayX - player.x));
+                //Xa = 64;
+
+            } else {
+
+                rayX = 64 + Math.floor(player.x/64)*64;
+                Xa = -64;
+                rayY = Math.tan(ray_rads)*(rayX - player.x) + player.y;
+                rayX--;
+            }
+
+            //rayY = player.y + (rayX - player.x) * Math.tan(ray_rads);
+            Ya = 64 * Math.tan(ray_rads);
+
+            if (ray_angle < 180) // FACING DOWN
+            {
+               // console.log("FACING NORTH (-1)");
+                if (Ya > 0) Ya = -Ya; //
+            } else {
+                // FACING UP
+               // console.log("FACING SOUTH (+1)");
+
+                if (Ya < 0) Ya = -Ya; //
+            }
+
+            if (r < 200){
+               // console.log("V [%d] Ray Start: (%f, %f)", r, rayX, rayY);
+               // console.log("V [%d] Start Y=%f, Inc Y=%f", r, rayY, Ya);
+            }
+
+
+            //console.log("Xa = "+Xa +", Ya = "+ Ya);
+            //console.log("casting vert from: "+rayX+", "+rayY);
+            do
+            {
+             //   buffer_context_rays.fillStyle = "#FF0000";
+              //  buffer_context_rays.fillRect(Math.floor(rayX), Math.floor(rayY),1,1);
+
+                if (!world.within_bounds(rayX, rayY))
+                {
+                   // leak = true;
+                    //console.log("map leak vert!! XY = "+rayX+","+rayY);
+                    rayX -= Xa;
+                    rayY -= Ya;
+                    break;
+
+                } else {
+                    if (is_solid2(rayX, rayY, ray_angle)) break;
+                }
+                rayX += Xa;
+                rayY += Ya;
+
+            } while(1);
+
+          //  console.log("casting vert end: "+rayX+","+rayY);
+// */
+
+            var vert_x_diff = rayX - player.x;
+            var vert_y_diff = rayY - player.y;
+            var vert_dist = Math.sqrt((vert_x_diff * vert_x_diff) + (vert_y_diff * vert_y_diff));
+
+            //var vert_dist = 9999999;
+
+            var dist = horz_dist;
+            var colour = '#000000';
+
+            if (vert_dist < horz_dist)
+            {
+                dist = vert_dist;
+                colour = '#ff0000';
+            }
+
+            var slice_height = (64 / dist) * projection.distance();
+
+            var lx = r;
+            var ly = (projection.height / 2) - (slice_height / 2);
+            if (!leak)
+            {
+
+            buffer_context.beginPath();
+            buffer_context.moveTo(lx, ly);
+            buffer_context.lineTo(lx, ly+slice_height);
+            buffer_context.strokeStyle = colour;
+            buffer_context.stroke();
+            } else {
+                buffer_context.beginPath();
+                buffer_context.moveTo(lx, 0);
+                buffer_context.lineTo(lx, 240);
+                buffer_context.strokeStyle = '#ffff00';
+                buffer_context.stroke();
+
+            }
+
+            //console.log(r+": "+ slice_height);
+
+            ray_angle += angle_inc;
+            if (ray_angle >= 360) ray_angle -=359;
+        }
+
+       // console.log("ANGLE END: "+ray_angle);
+
+    }
+
+    function writeln(text)
+    {
+        debug_el.innerHTML = text;
+    }
+
+    function is_solid2(wx, wy, r)
+    {
+
+        var x, y;
+
+        if (r > 90 && r < 270) //looking left (west)
+        {
+            x =  Math.floor(wx / 64) -1;
+        } else {
+            x = Math.floor(wx / 64);
+        }
+
+        if (r < 180) // up
+        {
+            y = Math.floor(wy / 64) - 1;
+        } else {
+            y = Math.floor(wy / 64);
+        }
+
+        if (world.data[y][x] !=0)
+            return true;
+        else
+            return false;
+
+
+    }
+
+    function is_solid(worldX, worldY, ray, raya)
+    {
+        var y = Math.floor(worldY / 64);
+        var x = Math.floor(worldX / 64);
+
+
+        if (world.data[y][x] != 0)
+        {
+            //console.log("[%d] %f: Solid [%d][%d]", ray, raya, y, x);
+            //console.log("Solid at [%d][%d]", y, x);
+            return true;
+        }
+        else {
+            return false;}
+
+    }
+
+
+
+
+</script>
+</html>

@@ -1,0 +1,2307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hello darling</title>
+
+<script src="numeric-solve.js"></script>
+</head>
+<body>
+
+
+<canvas id="screen" width="320" height="240"
+        style="border:1px solid #000000; float: left">
+</canvas>
+
+<div id="debug" style="width: 320px; height: 200px; margin-left: 10px; border: 1px solid black; float: left; overflow:auto ">
+
+</div>
+
+</body>
+<script>
+
+    var dbg_div_handle = document.getElementById('debug');
+
+    var SCREEN_WIDTH = 640*1;
+    var SCREEN_HEIGHT =480*1;
+
+    var TARGET_FPS = 60;
+
+    document.getElementById('screen').width = SCREEN_WIDTH;
+    document.getElementById('screen').height = SCREEN_HEIGHT;
+
+    var buffer = document.getElementById('screen');
+    var buffer_context = buffer.getContext('2d');
+    var buffer_data = buffer_context.getImageData(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    var x1 = 100, y1 = 0;
+    var x2 = 0, y2 = 100;
+
+
+    var bitmaps = [
+       "./gfx/32.png",
+            "./gfx/brick.png",
+            "./gfx/wall.png"
+    ];
+
+    var linedefs = [
+       {x1: 10, y1: 10, x2: 80,  y2: 120,  c: '#00ff00', h: 64, t:0},
+        {x1: 80, y1: 120, x2: 160, y2: 120,  c: '#00ffff', h:80, t:0}
+        , {x1:160, y1: 120,  x2: 160, y2: 10,  c: '#ff00ff', h: 48, t:1}
+    ];
+
+    var slopedefs = [
+        [
+            {x1: 110, y1: 75, x2: 140, y2: 75, h: 50},
+            {x1: 110, y1: 30, x2: 140, y2: 30, h: 10}
+        ]
+    ];
+
+
+
+
+    var floor_tex2 = [];
+    var floor_tex2_width = 16;
+
+    for (var fy=0; fy<floor_tex2_width; fy++)
+    {
+        floor_tex2[fy] = [];
+        for (var fx=0; fx<floor_tex2_width; fx++)
+        {
+            var color = {r:0,g:0,b:0};
+
+            if (fy < floor_tex2_width/2) {
+                if (fx < floor_tex2_width / 2)
+                    color = {r: 50, g: 50, b: 50};
+                else
+                    color = {r: 100, g: 100, b: 100};
+            } else {
+                if (fx >= floor_tex2_width / 2)
+                    color = {r: 50, g: 50, b: 50};
+                else
+                    color = {r: 100, g: 100, b: 100};
+            }
+
+            floor_tex2[fy][fx] = color;
+
+        }
+    }
+
+    var floor_tex = [];
+    var floor_tex_width = 64;
+
+    for (var fty=0; fty<floor_tex_width; fty++)
+    {
+        floor_tex[fty] = [];
+
+        for (var ftx=0; ftx<floor_tex_width; ftx++)
+        {
+            var color = {r: 255, g: 255, b:255};
+          //  if (ftx == fty)
+          //      color=2;
+
+            var f = (Math.floor(fty / 16)) / 4;
+            //color = f * 255;
+            //console.log(f);
+
+            if (fty < floor_tex_width/2) {
+                if (ftx < floor_tex_width / 2)
+                    color = {r: 255, g: 0, b: 0};
+                else
+                    color = {r: 0, g: 0, b: 255};
+            } else {
+                if (ftx < floor_tex_width / 2)
+                    color = {r: 0, g: 255, b: 0};
+                else
+                    color = {r: 255, g: 255, b: 0};
+            }
+
+            if (fty == 0 || fty == (floor_tex_width-1))
+                color= {r:0,g:0,b:0};
+            if (ftx ==0 || ftx == (floor_tex_width-1))
+                color= {r:0,g:0,b:0};
+
+
+            floor_tex[fty][ftx] = color;
+        }
+
+    }
+    //console.log(floor_tex);
+    //buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
+    //buffer_context.putImageData(buffer_data, 0, 0);
+
+
+
+
+    var textures = [];
+
+   // window.addEventListener("keydown", move, true);
+
+    var player_x;
+    var player_y;
+    var player_v;
+    var player_height = 30;
+    var speed = 3;
+
+    var fov = 60;
+    var vfov = deg(2 * Math.atan(Math.tan(rad(fov)/2) * (SCREEN_HEIGHT/SCREEN_WIDTH)));
+    var projection_width = SCREEN_WIDTH;
+    var projection_centre = projection_width / 2;
+    var projection_height = SCREEN_HEIGHT;
+
+    console.log("Vertical FOV = %f", vfov);
+
+    var focal_length = projection_centre / Math.tan(rad(fov/2));
+
+    console.log("Focal length = %f", focal_length);
+
+    dbg_clear();
+
+    //fill_triangle(100, 100, 200, 200,50, 200, 'brown' );
+
+    function fill_triangle(x1, y1, x2, y2, x3, y3, col)
+    {
+
+        var vertices = [
+                [x1, y1],
+                [x2, y2],
+                [x3, y3]
+        ];
+
+        var vert_sorted = vertices.sort(
+                    function(a,b){
+                        return a[1] - b[1];
+                    }
+        );
+
+         x1 = vert_sorted[0][0]; y1 = vert_sorted[0][1];
+         x2 = vert_sorted[1][0]; y2 = vert_sorted[1][1];
+         x3 = vert_sorted[2][0]; y3 = vert_sorted[2][1];
+
+        var x4 = x1 +((y2 - y1)/(y3-y1)) * (x3 - x1);
+        var y4 = y2;
+
+        fill_flat_bottom(x1, y1, x2, y2, x4, y4, col);
+        fill_flat_top(x2, y2, x4, y4, x3, y3, col);
+    }
+
+    function fill_flat_top(x1, y1, x2, y2, x3, y3, col)
+    {
+        var invslope1 = (x3 - x1) / (y3 - y1);
+        var invslope2 = (x3 - x2) / (y3 - y2);
+
+        var curx1 = x3;
+        var curx2 = x3;
+        for (var scanlineY = y3; scanlineY > y1; scanlineY--)
+        {
+
+            curx1 -= invslope1;
+            curx2 -= invslope2;
+            line (curx1, scanlineY, curx2, scanlineY, col, 1);
+        }
+    }
+
+    function texture_triangle(x1, y1, z1, u1, v1, x2, y2, z2, u2, v2, x3, y3, z3, u3, v3) {
+        var vertices = [
+            [x1, y1],
+            [x2, y2],
+            [x3, y3]
+        ];
+
+        var vs = vertices.sort(
+                function (a, b) {
+                    return a[1] - b[1];
+                }
+        );
+
+        x1 = vs[0][0]; y1 = vs[0][1];// z1 = vs[0][2]; u1 = vs[0][3]; v1 = vs[0][4];
+        x2 = vs[1][0]; y2 = vs[1][1];//                   z2 = vs[1][2]; u2 = vs[1][3]; v2 = vs[1][4];
+        x3 = vs[2][0]; y3 = vs[2][1];// z3 = vs[2][2]; u3 = vs[2][3]; v3 = vs[2][4];
+
+
+
+        if (y2 == y3)
+        {
+            fillBottomFlatTriangle({x: x1, y: y1}, {x: x2, y: y2}, {x: x3, y: y3});
+        }
+        else if (y1 == y2)
+        {
+
+            fillTopFlatTriangle(
+                    {x: x1, y: y1, z: z1, u: u1, v: v1},
+                    {x: x2, y: y2, z: z2, u: u2, v: v2},
+                    {x:x3, y:y3, z: z3, u: u3, v: v3} );
+
+
+        } else {
+           var v4 = {
+                    x: x1 + ((y2 - y1) / (y3 - y1)) * (x3 - x1),
+                    y: y2,
+                    z: z1 + ((y2 - y1) / (y3 - y1)) * (z3 - z1),
+                    u: u1 + ((y2 - y1) / (y3 - y1)) * (u3 - u1),
+                    v: v1 + ((y2 - y1) / (y3 - y1)) * (v3 - v1)
+            };
+
+
+            fillBottomFlatTriangle({x: x1, y: y1}, {x: x2, y: y2}, v4);
+
+            fillTopFlatTriangle( {x: x2, y: y2, z: z2, u: u2, v: v2},
+                                    v4,
+                                    {x:x3, y:y3, z: z3, u: u3, v: v3} );
+
+
+
+        }
+
+
+
+    }
+
+
+
+    function texture_flat_top(x1, y1, z1, u1, v1, x2, y2, z2, u2, v2, x3, y3, z3, u3, v3)
+    {
+        if (floor_tex === undefined)
+        {
+            console.log("TEXTURE UNDEFINED WTF");
+            return;
+        }
+
+//        for (var p =0; p<SCREEN_HEIGHT; p++) pixel(buffer_data, p, p, 0,0,0);
+
+
+        var     iz1 = 1/z1,
+                iz2 = 1/z2,
+                iz3 = 1/z3;
+
+        var u1z = u1 / z1,
+            v1z = v1 / z1;
+        var u2z = u2 / z2,
+            v2z = v2 / z2;
+        var u3z = u3 / z3,
+            v3z = v3 / z3;
+
+        var x1_inc = (x3 - x1) / (y3 - y1);
+        var x2_inc = (x3 - x2) / (y3 - y2);
+
+        var z1_inc = (iz3 - iz1) / (y3 - y1);
+        var z2_inc = (iz3 - iz2) / (y3 - y2);
+
+        var u1_inc = (u3z - u1z) / (y3 - y1);
+        var u2_inc = (u3z - u2z) / (y3 - y2);
+
+        var v1_inc = (v3z - v1z) / (y3 - y1);
+        var v2_inc = (v3z - v2z) / (y3 - y2);
+
+        var curx1 = x3;
+        var curx2 = x3;
+        var cur_u1z = u3z;
+        var cur_u2z = u3z;
+        var cur_v1z = v3z;
+        var cur_v2z = v3z;
+        var cur_iz1 = iz3;
+        var cur_iz2 = iz3;
+
+        for (var scanlineY = y3; scanlineY > y1; scanlineY--)
+        {
+            curx1 -= x1_inc;
+            curx2 -= x2_inc;
+
+            cur_u1z -= u1_inc;
+            cur_v1z -= v1_inc;
+
+            cur_u2z -= u2_inc;
+            cur_v2z -= v2_inc;
+
+            cur_iz1 -= z1_inc;
+            cur_iz2 -= z2_inc;
+
+            var x_width = Math.round(Math.abs(curx2 - curx1 +1));
+            var start_x = (curx1 > curx2) ? curx2 : curx1;
+            start_x = Math.round(start_x);
+            var end_x = start_x + x_width;
+
+
+            var horz_1z= cur_iz2;
+            var horz_1z_inc = (cur_iz2 - cur_iz1) / x_width;
+            var horz_u = cur_u2z;
+            var horz_v = cur_v2z;
+            var horz_u_inc = (cur_u2z - cur_u1z) / x_width;
+            var horz_v_inc = (cur_v2z - cur_v1z) / x_width;
+
+            //ctx.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+
+            for (var X = start_x; X<end_x; X++)
+            {
+
+                var U = horz_u / horz_1z;
+                var V = horz_v / horz_1z;
+
+                var tu = Math.round(U * floor_tex_width);// % floor_tex_width;
+                var tv = Math.round(V * floor_tex_width);// % floor_tex_width;
+
+                if (tu >= floor_tex_width || tv >= floor_tex_width || tu < 0 || tv < 0)
+                {
+                    var s = "Old UV = "+tu+", "+tv;
+                    if (tu < 0) tu += floor_tex_width;
+                    if (tv < 0) tv += floor_tex_width;
+
+                    tu %= floor_tex_width;
+                    tv %= floor_tex_width;
+
+                   // console.log("%s, New UV = %f, %f", s, tu, tv);
+                }
+
+               // console.log("TV,TU = %f, %f", tv, tu);
+                var c = floor_tex[tv][tu];
+
+                pixel(buffer_data, X, scanlineY, c.r, c.g, c.b);
+                horz_u  -= horz_u_inc;
+                horz_v  -= horz_v_inc;
+                horz_1z -= horz_1z_inc;
+            }
+
+
+
+            //line (curx1, scanlineY, curx2, scanlineY, 'yellow', 1);
+        }
+
+    }
+
+    function fillBottomFlatTriangle(v1, v2, v3)
+    {
+        var invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
+        var invslope2 = (v3.x - v1.x) / (v3.y - v1.y);
+
+        var curx1 = v1.x;
+        var curx2 = v1.x;
+
+        for (var scanlineY = v1.y; scanlineY <= v2.y; scanlineY++)
+        {
+            //drawLine((int)curx1, scanlineY, (int)curx2, scanlineY);
+            h_line(curx1, curx2, scanlineY,0,0,255);
+            curx1 += invslope1;
+            curx2 += invslope2;
+        }
+    }
+
+    function textureTopFlatTriangle(v1, v2, v3)
+    {
+        var u1z = v1.u / v1.z,
+            v1z = v1.v / v1.z;
+        var u2z = v2.u / v2.z,
+            v2z = v2.v / v2.z;
+        var u3z = v3.u / v3.z,
+            v3z = v3.v / v3.z;
+
+
+        var recip1 = (v3.y - v1.y);
+        var recip2 = (v3.y - v2.y);
+
+        var xa_inc = (v3.x - v1.x) / recip1;
+        var xb_inc = (v3.x - v2.x) / recip2;
+
+        var za_inc = (v3.z - v1.z) / recip1;
+        var zb_inc = (v3.z - v2.z) / recip2;
+
+        var ua_inc = (u3z - u1z) /  recip1;
+        var ub_inc = (u3z - u2z) /  recip2;
+
+        var va_inc = (v3z - v1z) /  recip1;
+        var vb_inc = (v3z - v2z) /  recip2;
+
+        var xa = v3.x, xb = v3.x;
+        var za = v3.z, zb = v3.z;
+        var ua = u3z,  ub = u3z;
+        var va = v3z,  vb = v3z;
+
+        for (var scanlineY = v3.y; scanlineY > v1.y; scanlineY--)
+        {
+
+            var x1 = xa, x2 = xb;
+            if (x1 > x2) x2 = [x1, x1 = x2][0];
+
+            var width = (x2 - x1) + 1;
+
+            var u = ua, u_inc = (ub - ua) / width;
+            var v = va, v_inc = (vb - va) / width;
+            var z = za, z_inc = (zb - za) / width;
+
+            for (var X=x1; X<=x2; X++)
+            {
+                var U = u * z;
+                var V = v * z;
+
+                var tu = Math.round(U * floor_tex_width);
+                var tv = Math.round(V * floor_tex_width);
+
+                tu %= floor_tex_width;
+                tv %= floor_tex_width;
+
+                var c = floor_tex[tv][tu];
+
+                pixel(buffer_data, X, scanlineY, c.r, c.g, c.b);
+
+                u += u_inc;
+                v += v_inc;
+                z += z_inc;
+            }
+
+            ua -= ua_inc;
+            ub -= ub_inc;
+
+            va -= va_inc;
+            vb -= vb_inc;
+
+            za -= za_inc;
+            zb -= zb_inc;
+
+            xa -= xa_inc;
+            xb -= xb_inc;
+
+           // h_line(xa, xb, scanlineY, 255,0,255);
+        }
+    }
+
+    function fillTopFlatTriangle(v1, v2, v3)
+    {
+        var invslope1 = (v3.x - v1.x) / (v3.y - v1.y);
+        var invslope2 = (v3.x - v2.x) / (v3.y - v2.y);
+
+        var curx1 = v3.x;
+        var curx2 = v3.x;
+
+        for (var scanlineY = v3.y; scanlineY > v1.y; scanlineY--)
+        {
+            curx1 -= invslope1;
+            curx2 -= invslope2;
+            //drawLine((int)curx1, scanlineY, (int)curx2, scanlineY);
+            h_line(curx1, curx2, scanlineY, 255,0,255);
+        }
+    }
+
+
+    function fill_flat_bottom(x1, y1, x2, y2, x3, y3)
+    {
+        var invslope1 = (x2 - x1) / (y2 - y1);
+        var invslope2 = (x3 - x1) / (y3 - y1);
+        console.log(invslope1, invslope2);
+
+        var curx1 = x1;
+        var curx2 = x1;
+
+        var start_y = y1, end_y = y2;
+        if (y1 > y2) { start_y=y2; end_y=y1;}
+
+        for (var scanlineY = start_y; scanlineY <= end_y; scanlineY++)
+        {
+            h_line (curx1, curx2, scanlineY, 0,0,255);
+            curx1 += invslope1;
+            curx2 += invslope2;
+        }
+    }
+
+
+    function texture_flat_bottom2(x1, y1, z1, u1, v1, x2, y2, z2, u2, v2, x3, y3, z3, u3, v3)
+    {
+        var invslopeA = (x2 - x1) / (y2 - y1);
+        var invslopeB = (x3 - x1) / (y3 - y1);
+
+        var curx_a = x1;
+        var curx_b = x1;
+
+        console.log(curx_a, curx_b, invslopeA, invslopeB);
+
+        for (var Y = y1; Y <= y2; Y++)
+        {
+            //line (curx1, scanlineY, curx2, scanlineY, col, 1);
+
+            var start_x = curx_a, end_x = curx_b;
+
+            if (start_x > end_x)
+            {
+                start_x = curx_b;
+                end_x = curx_a;
+            }
+
+            for (var X=start_x; X<=end_x; X++)
+            {
+
+                pixel(buffer_data, X, Y,0,0,255);
+
+            }
+
+
+            curx_a += invslopeA;
+            curx_b += invslopeB;
+
+            //console.log(curx_a, curx_b);
+        }
+    }
+
+
+    function texture_flat_bottom(x1, y1, z1, u1, v1, x2, y2, z2, u2, v2, x3, y3, z3, u3, v3)
+    {
+        console.log(v1, v2);
+        //0 0 1 0 0 0
+        var iz1 = 1/z1,
+            iz2 = 1/z2,
+            iz3 = 1/z3;
+
+        var u1z = u1 / z1,
+            v1z = v1 / z1;
+        var u2z = u2 / z2,
+            v2z = v2 / z2;
+        var u3z = u3 / z3,
+            v3z = v3 / z3;
+
+        var x1_inc = (x2 - x1) / (y2 - y1);
+        var x2_inc = (x3 - x1) / (y3 - y1);
+
+        var z1_inc = (iz2 - iz1) / (y2 - y1);
+        var z2_inc = (iz3 - iz1) / (y3 - y1);
+
+        var u1_inc = (u2z - u1z) / (y2 - y1);
+        var u2_inc = (u3z - u1z) / (y3 - y1);
+
+        var v1_inc = (v2z - v1z) / (y2 - y1);
+        var v2_inc = (v3z - v1z) / (y3 - y1);
+
+
+
+        var cur_u1z = u1z;
+        var cur_u2z = u1z;
+        var cur_v1z = v1z;
+        var cur_v2z = v1z;
+        var cur_x1 = x1;
+        var cur_x2 = x1;
+        var cur_iz1 = iz1;
+        var cur_iz2 = iz1;
+
+
+
+        for (var scanlineY = y1; scanlineY <= y2; scanlineY++)
+        {
+           // console.log(scanlineY);
+          //console.log("Y=%f, cur_x1 = %f, cur_x2 = %f", scanlineY, cur_x1, cur_x2);
+
+            //line (cur_x1, scanlineY, cur_x2, scanlineY, 'red', 1);
+
+            var x_width = Math.round(Math.abs(cur_x2 - cur_x1 + 1));
+
+            var start_x = (cur_x1 > cur_x2) ? cur_x2 : cur_x1;
+            start_x = Math.round(start_x);
+            var end_x = start_x + x_width;
+
+            var horz_1z= cur_iz1;
+            var horz_1z_inc = (cur_iz2 - cur_iz1) / x_width;
+            var horz_u = cur_u1z;
+            var horz_v = cur_v1z;
+
+            var horz_u_inc = (cur_u2z - cur_u1z) / x_width;
+            var horz_v_inc = (cur_v2z - cur_v1z) / x_width;
+
+            var s = "Y "+scanlineY+": UV ("+horz_u+", "+horz_v+")   -->  UV (";
+
+            for (var X = start_x; X<= end_x; X++)
+            {
+                //console.log("X="+X);
+                var U = horz_u / horz_1z;
+                var V = horz_v / horz_1z;
+
+                var tu = Math.round(U * floor_tex_width);
+                var tv = Math.round(V * floor_tex_width);
+
+                if (tu >= floor_tex_width || tv >= floor_tex_width || tu < 0 || tv < 0)
+                {
+                    //ar s = "Old UV = "+tu+", "+tv;
+                    if (tu < 0) tu += floor_tex_width;
+                    if (tv < 0) tv += floor_tex_width;
+
+
+
+                }
+
+                tu %= floor_tex_width;
+                tv %= floor_tex_width;
+
+               // if (scanlineY == y2-1)
+               // console.log("X=%d: U,V = %f, %f", X, horz_u, horz_v);
+
+                var c = floor_tex[tv][tu];
+
+                pixel(buffer_data, X, scanlineY, c.r, c.g, c.b);
+                //pixel(buffer_data, X, scanlineY, 0,0,0);
+
+                horz_u  -= horz_u_inc;
+                horz_v  += horz_v_inc;
+                horz_1z += horz_1z_inc;
+            }
+
+            s += horz_u +", " + horz_v+")";
+
+
+            console.log(s);
+
+
+          //  console.log("end UV = %f, %f", U, V);
+
+            cur_x1 += x1_inc;
+            cur_x2 += x2_inc;
+
+            cur_u1z += u1_inc;
+            cur_v1z += v1_inc;
+
+            cur_u2z += u2_inc;
+            cur_v2z += v2_inc;
+
+            cur_iz1 += z1_inc;
+            cur_iz2 += z2_inc;
+        }
+
+        //console.log("Z1 = %f, U1,V1 = %f, %f", 1/cur_iz1, (cur_u1z / cur_iz1), (cur_v1z / cur_iz1));
+    }
+
+
+
+
+    /*
+
+
+    var tx1 = 100, ty1 = 100;
+    var tx2 = 250, ty2 = 50;
+
+    var tx3 = 50, ty3 = 350;
+    var tx4 = 200, ty4 = 400;
+
+    line(tx1, ty1, tx2, ty2, '#ff0000',1);
+    line(tx3, ty3, tx4, ty4, '#ff0000',1);
+
+    buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
+
+
+    var rise =  (ty2-ty1);
+    var run =  (tx2-tx1);
+    var slope = rise / run;
+
+    var x_is_start = true;             // slope is upwards
+    if (slope > 0) x_is_start = false; //slope is downwards
+
+    var yscan = [];
+
+    var starty = 0;
+    var endy = 0;
+
+
+
+    for (var x=0; x < run; x++)
+    {
+        var px = tx1 + x;
+        var py = Math.round((x * slope)+ty1);
+        if (x==0) starty = py;
+        if (x == run-1) endy = py;
+
+        if (!yscan[py])
+            yscan[py] = {};
+
+        if (!yscan[py].x1 && !yscan[py].x2) {
+            if (x_is_start) yscan[py].x1 = px; else yscan[py].x2 = px;
+
+        }
+        pixel(buffer_data, px, py, 0,0,0);
+    }
+
+    if (slope < 0) starty=endy+(endy=starty)-starty;
+
+    for (var t=starty; t<=endy;t++)
+    {
+        console.log("y=%d  ",t,yscan[t]);
+    }
+
+
+    buffer_context.putImageData(buffer_data, 0, 0);
+
+
+    function scan_convert_horz(poly_buffer, x1, y1, x2, y2)
+    {
+        var rise =  (y2-y1);
+        var run =  (x2-x1);
+        var slope = rise / run;
+
+        var x_is_start = true;             // slope is upwards
+        if (slope > 0) x_is_start = false; //slope is downwards
+
+
+        var starty = 0;
+        var endy = 0;
+
+        for (var x=0; x < run; x++)
+        {
+            var px = x1 + x;
+            var py = Math.round((x * slope)+y1);
+            if (x==0) starty = py;
+            if (x == run-1) endy = py;
+
+            if (!poly_buffer[py])
+                poly_buffer[py] = {};
+
+            if (!poly_buffer[py].x1 && !poly_buffer[py].x2) {
+                if (x_is_start) poly_buffer[py].x1 = px; else poly_buffer[py].x2 = px;
+            }
+        }
+
+    }
+
+*/
+
+    function test_floor2()
+    {
+        player_x = 110;
+        player_y = 0;
+        player_v =45;
+
+        var column_angle = fov / SCREEN_WIDTH;
+
+        var proj_centre = SCREEN_HEIGHT / 2;
+
+        for (var fe=0; fe<SCREEN_WIDTH; fe++)
+        {
+            var fstart = (SCREEN_HEIGHT / 2)+1;
+            var angle_x = column_angle * (Math.abs(fe - SCREEN_WIDTH / 2));
+            var cos_beta = Math.cos(rad(angle_x));
+
+            var ra = x_to_ray_angle(fe, player_v);
+
+            var pcos = Math.cos(rad(ra));
+            var psin = Math.sin(rad(ra));
+
+            for (var fy = fstart; fy<SCREEN_HEIGHT; fy++)
+            {
+                var r = (fy - proj_centre);
+                var straight_dist = (player_height / r) * focal_length;
+                var dist = straight_dist / cos_beta;
+
+                var mx = player_x + dist * pcos;
+                var my = player_y + dist * psin;
+
+                var tu = Math.floor(mx % floor_tex_width);
+                var tv = Math.floor(my % floor_tex_width);
+
+                if (tu < 0) tu += floor_tex_width;
+                if (tv < 0) tv += floor_tex_width;
+
+                r=0;g=0;b=0;
+
+                //console.log("tex: [%f,%f]",tu,tv);
+
+                if (floor_tex[tv][tu] == 1)
+                    r=255;
+
+                if (floor_tex[tv][tu] == 2)
+                    g=255;
+
+                index = (fe + fy * SCREEN_WIDTH) * 4;
+                buffer_data.data[index+0] = r;
+                buffer_data.data[index+1] = g;
+                buffer_data.data[index+2] = b;
+                buffer_data.data[index+3] = 255;
+
+            }
+
+        }
+
+        buffer_context.putImageData(buffer_data, 0, 0);
+
+
+    }
+
+    function test_floor()
+    {
+        player_x = 110;
+        player_y = 0;
+        player_v =90;
+
+        for (var fe=0; fe<SCREEN_WIDTH; fe++)
+        {
+            var fstart = SCREEN_HEIGHT / 2;
+
+            var ra = x_to_ray_angle(fe, player_v);
+            //console.log("%d: %f", fe, ra);
+                var pcos = Math.cos(rad(ra));
+                var psin = Math.sin(rad(x_to_ray_angle(fe, player_v)));
+
+                for (var fy=fstart; fy<SCREEN_HEIGHT; fy++)
+                {
+                    var dist = y_to_distance(fy, player_height);
+
+                   // dist *= (Math.abs(Math.acos(rad(tan_to_player_angle(x_to_view_angle[fe])))));
+
+                    if (fe ==0) dbg("y="+fy+", dist="+dist);
+
+                    //console.log('dist='+dist);
+
+                    var mx = player_x + dist * pcos;
+                    var my = player_y + dist * psin;
+
+                    var tu = Math.floor(mx % floor_tex_width);
+                    var tv = Math.floor(my % floor_tex_width);
+
+                    if (tu < 0) tu += floor_tex_width;
+                    if (tv < 0) tv += floor_tex_width;
+
+                    r=0;g=0;b=0;
+
+                    //console.log("tex: [%f,%f]",tu,tv);
+
+                    if (floor_tex[tv][tu] == 1)
+                        r=255;
+
+                    if (floor_tex[tv][tu] == 2)
+                        g=255;
+
+                    index = (fe + fy * SCREEN_WIDTH) * 4;
+                    buffer_data.data[index+0] = r;
+                    buffer_data.data[index+1] = g;
+                    buffer_data.data[index+2] = b;
+                    buffer_data.data[index+3] = 255;
+
+                }
+
+        }
+
+        buffer_context.putImageData(buffer_data, 0, 0);
+
+    }
+
+
+
+
+
+    /* // perspective-correct tex mapping...
+
+        var length = 100;
+
+        var u_start = 0;
+        var u_end = 63;
+
+        var z_start = 80;
+        var z_end = 80;
+
+
+        var u = (u_start / z_start);
+        var u_inc = ((u_end / z_end) - u) / length;
+
+        var z = (1 / z_start);
+        var z_inc = ((1 / z_end) - z) / length;
+
+        for (var i=0; i<length; i++)
+        {
+            var tex_u  = (u / z);
+            console.log("U/Z = %f,  1/Z = %f, TEX_U = %f", u, z, tex_u);
+
+            u += u_inc;
+            z += z_inc;
+        }
+
+    */
+
+
+
+
+    function rad(d) { return d * (Math.PI / 180); }
+    function deg(r) { return r * (180 / Math.PI); }
+
+    function dbg(txt)
+    {
+        dbg_div_handle.innerHTML += txt +"<br>";
+    }
+    function dbg_clear()
+    {
+        dbg_div_handle.innerHTML = "";
+    }
+    function dbg_set(txt)
+    {
+        dbg_div_handle.innerHTML = txt;
+    }
+
+    function point_to_angle(x, y)
+    {
+
+        x -= player_x;
+        y -= player_y;
+
+        return angle_between(0,0,x,y);
+
+    }
+
+    function to_view_angle(a)
+    {
+        if (a > 0 && a <=180)
+        {
+            a = 180 + (180 - a);
+        } else {
+            a = -a;
+        }
+
+        return a;
+    }
+
+    function to_clip_angle(a)
+    {
+        if (a<0)
+        {
+            a = -a;
+        } else {
+            a = 180+ (180-a);
+        }
+
+        a +=90;
+
+        if (a > 359) a-=360;
+
+        return a;
+    }
+
+    function player_to_tan_angle(a)
+    {
+        var pvc = a;
+        pvc -=90;
+        if (pvc < 0) pvc += 360;
+
+        if (pvc < 180)
+            pvc = -pvc;
+        else
+            pvc = 360-pvc;
+
+        return pvc;
+    }
+
+    function tan_to_player_angle(a)
+    {
+        var pvc = a;
+        if (pvc < 0) pvc = 180 + (180+pvc);
+        pvc = 90+(360 - pvc);
+        if (pvc > 359) pvc -= 360;
+
+        return pvc;
+    }
+
+    function angle_between2(x1, y1, x2, y2)
+    {
+        //       90
+        //        |
+        // 180 ------- 0
+        //        |
+        //       -90
+        //
+
+        return Math.atan2(x1-x2, y1-y2) * (180 / Math.PI);
+    }
+
+    function angle_between(x1, y1, x2, y2)
+    {
+        //       90
+        //        |
+        // 180 ------- 0
+        //        |
+        //       -90
+        //
+
+        return Math.atan2(x2-x1, y2-y1) * (180 / Math.PI);
+    }
+
+    var x_to_view_angle = [];
+    function init_tables()
+    {
+        for (var x=0; x<SCREEN_WIDTH; x++)
+        {
+
+            var i=-90;
+            while (viewangletox(i) < x)
+            {
+                i+=0.1;
+            }
+
+            x_to_view_angle[x] = i;
+        }
+    }
+    function viewangletox(angle)
+    {
+        var t = Math.tan(rad(angle)) * focal_length;
+        var v = projection_centre + t;
+        //if (v < -90) v= -90;
+        //else if (v > SCREEN_WIDTH) v = SCREEN_WIDTH;
+        return v;
+    }
+
+    function x_to_ray_angle(x, player_view_angle)
+    {
+        if (x < 0) return; if (x > SCREEN_WIDTH-1) return;
+        var pix_ang = ((fov / SCREEN_WIDTH) * x) - (fov/2);
+        var pva = player_view_angle - pix_ang;
+        if (pva > 359) pva -= 360;
+        var savepva = pva;
+        if (pva < 0) {
+            pva += 360;
+        }
+        //if (pva < 0) console.log("wtf!?!????! pva was %f, pix_ang is %f and player_v is %f", savepva, pix_ang, player_view_angle);
+        return pva;
+    }
+
+    function y_to_distance(y, eye_height)
+    {
+        var v_ang = ((SCREEN_HEIGHT-1)-y) * (90 / SCREEN_HEIGHT);
+        var dist =  eye_height * Math.tan(rad(v_ang));
+
+
+        return dist;
+    }
+
+    function distance(x1, y1, x2, y2)
+    {
+        var xdiff = x2-x1;
+        var ydiff = y2-y1;
+
+        return Math.sqrt((xdiff*xdiff) + (ydiff*ydiff));
+    }
+
+    function project_wall(height, distance)
+    {
+        var heightA = (height / distance) *  focal_length;
+        var eyeHeight = player_height * 0.75;
+        //var player_z = objectZ = 0;
+        var base = (eyeHeight *2); // + player_z - objectZ) * 2;
+        var horizonOffset = (heightA - Math.floor(base / distance * focal_length)) / 2;
+        var endA = parseInt((SCREEN_HEIGHT / 2 - horizonOffset) + heightA / 2);
+        return {height: heightA, y_bottom: endA};
+    }
+    //var a = angle_between(100, 100, 100, 0);
+
+    //console.log("ANGLE = %f", a);
+
+    player_x = 110;
+    player_y = 0;
+    player_v =90;
+/*
+
+    var htex = 192;
+    var hwall = 150;
+    var hproj =73;
+
+    var vreps = hwall / htex;
+
+    console.log("Wall height (units) = %f\nTex height (pixels) = %d\nTex reps = %f", hwall, htex, vreps);
+
+    if (vreps <= 1)
+    {
+        console.log("Texture 'V' (0 -> %f) stretched %f pixels", hwall, hproj);
+
+    } else {
+
+        var full_vreps = Math.floor(vreps);
+        var v_extra = hwall % htex;
+        var scale_ratio = hproj / hwall;
+
+        console.log("Texture 'V' repeated %d times with extra %f units of wall covered with top %f V texels", full_vreps, v_extra, v_extra);
+
+        var full_scaled_size = Math.round(scale_ratio * htex);
+        var all_full_scaled_size = full_scaled_size * full_vreps;
+        var remainder = hproj - all_full_scaled_size;
+
+        console.log("Scaled size (%d * %f pixels = %f) + %d pixels remainder",  full_vreps, full_scaled_size, all_full_scaled_size, remainder );
+
+
+        for (var vr=0; vr<full_vreps; vr++)
+        {
+
+        }
+
+
+    }
+*/
+    // load map data
+
+
+    for(var i=SCREEN_HEIGHT/2; i < SCREEN_HEIGHT; i++)
+    {
+
+        var is = i-(SCREEN_HEIGHT/2);
+        //floor_dist_table[is] =
+        var iv = (64 * focal_length) / (2*is);
+
+        //console.log("dist = %f, val = %f", is, iv);
+    }
+
+
+
+    function tsa(a)
+    {
+        if (a < -90) return false;
+        if (a > 90) return false;
+        return true;
+    }
+    function render_slopes()
+    {
+        var player_vc = player_to_tan_angle(player_v);
+
+       // buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        //console.clear();
+        for (var ldc=0; ldc<slopedefs.length; ldc++)
+        {
+            var backwall = slopedefs[ldc][0];
+            var frontwall = slopedefs[ldc][1];
+
+
+
+            //console.log(backwall, frontwall);
+
+            // Get the global/world angle of wall endpoints... relative to viewpoint (translate to origin)
+            var back1 = point_to_angle(backwall.x1, backwall.y1);
+            var back2 = point_to_angle(backwall.x2, backwall.y2);
+
+           // console.log("back2 = %d, x2 = %d, y2 = %d", back2, backwall.x2, backwall.y2);
+
+            var front1 = point_to_angle(frontwall.x1, frontwall.y1);
+            var front2 = point_to_angle(frontwall.x2, frontwall.y2);
+
+            // Subtract player-viewpoint angle to move walls into player-space frustum
+            back1 -= player_vc;
+            back2 -= player_vc;
+            front1 -= player_vc;
+            front2 -= player_vc;
+
+
+
+
+            if (tsa(back1) && tsa(back2) && tsa(front1) && tsa(front2)) {
+                var back_d1 = distance(player_x, player_y, backwall.x1, backwall.y1);
+                var back_d2 = distance(player_x, player_y, backwall.x2, backwall.y2);
+
+                var front_d1 = distance(player_x, player_y, frontwall.x1, frontwall.y1);
+                var front_d2 = distance(player_x, player_y, frontwall.x2, frontwall.y2);
+
+                // Get screenspace 'X' of wall endpoints
+                var bx1 = Math.round(viewangletox(back1));
+                var bx2 = Math.round(viewangletox(back2));
+
+                var fx1 = Math.round(viewangletox(front1));
+                var fx2 = Math.round(viewangletox(front2));
+
+                var p_back1 = project_wall(backwall.h, back_d1);
+                var p_back2 = project_wall(backwall.h, back_d2);
+
+                var p_front1 = project_wall(frontwall.h, front_d1);
+                var p_front2 = project_wall(frontwall.h, front_d2);
+
+                var by1 = Math.round(p_back1.y_bottom - p_back1.height);
+                var by2 = Math.round(p_back2.y_bottom - p_back2.height);
+
+                var fy1 = Math.round(p_front1.y_bottom - p_front1.height);
+                var fy2 = Math.round(p_front2.y_bottom - p_front2.height);
+
+                //console.log("slopes");
+                //console.log(bx1, by1, bx2, by2);
+
+                //line(bx1, by1, bx2, by2, '#ff0000',3);
+                //line(fx1, fy1, fx2, fy2, '#00ff00',3);
+                //line(bx1, by1, fx1, fy1, '#0000ff',3);
+                //line(bx2, by2, fx2, fy2, '#000000',3);
+
+                //fill_triangle(bx1, by1, bx2, by2, fx1, fy1, 'green');
+
+                texture_triangle(
+                        bx1, by1, back_d1, 0, 0,
+                        bx2, by2, back_d2, 1, 0,
+                        fx1, fy1, front_d1, 0, 1
+                );
+
+
+                texture_triangle(
+                        bx2, by2, back_d2, 1, 0,
+                        fx2, fy2, front_d2, 1, 1,
+                        fx1, fy1, front_d1, 1, 0
+                );
+
+
+//                fill_triangle(bx2, by2, fx2, fy2, fx1, fy1, 'green');
+
+                //console.clear();
+                //console.log(back_d1, back_d2, front_d1, front_d2);
+/*
+                var ewidth = (bx2 - bx1)+1;
+                var eheight = (by2 - by1)+1;
+                var yslope =  eheight / ewidth;
+
+
+                for (var ex=0; ex<ewidth; ex++)
+                {
+                    var ey = ex * yslope;
+
+                    var px = bx1 + ex;
+                    var py = by1 + ey;
+
+                    //line(ex,ex,100,100, '#00ff00');
+                    pixel(buffer_data, px, py, 0, 255, 0);
+                    console.log("%d, %d", px, py);
+
+
+                }
+*/
+
+
+            }
+            else {
+
+
+            }
+
+
+
+        }
+
+      //  buffer_context.putImageData(buffer_data, 0, 0);
+
+    }
+
+    function render_floor(floor_edges2)
+    {
+        var r = 0, g= 0, b= 0, index=0;
+
+        if (player_height <= 0) return;
+
+        var column_angle = fov / SCREEN_WIDTH;
+
+        var proj_centre = SCREEN_HEIGHT / 2;
+
+        for (var fe=0; fe<SCREEN_WIDTH; fe++)
+        {
+            var fstart = floor_edges2[fe].y;
+
+            //var fstart = (SCREEN_HEIGHT / 2)+1;
+            if (fstart != -1)
+            {
+                var angle_x = column_angle * (Math.abs(fe - SCREEN_WIDTH / 2));
+                var cos_beta = Math.cos(rad(angle_x));
+
+                var ra = x_to_ray_angle(fe, player_v);
+
+                var pcos = Math.cos(rad(ra));
+                var psin = Math.sin(rad(ra));
+
+                for (var fy = fstart; fy < SCREEN_HEIGHT; fy++) {
+                    var r = (fy - proj_centre)+1;
+                    var straight_dist = (player_height / r) * focal_length;
+                    var dist = straight_dist / cos_beta;
+
+                    var mx = player_x + dist * pcos;
+                    var my = player_y + dist * psin;
+
+                    var tu = Math.floor(mx % floor_tex2_width);
+                    var tv = Math.floor(my % floor_tex2_width);
+
+                    if (tu < 0) tu += floor_tex2_width;
+                    if (tv < 0) tv += floor_tex2_width;
+
+                    r = 0;
+                    g = 0;
+                    b = 0;
+
+                    //console.log("tex: [%f,%f]",tu,tv);
+
+                    //if (floor_tex[tv][tu] == 1)
+                    //    r = 255;
+
+                    //if (floor_tex[tv][tu] == 2)
+                    //  g = 255;
+
+                    //if (floor_edges2[fe].c == 2) g = 255;
+                    var c = floor_tex2[tu][tv];
+
+                    index = (fe + fy * SCREEN_WIDTH) * 4;
+                    buffer_data.data[index + 0] = c.r;
+                    buffer_data.data[index + 1] = c.g;
+                    buffer_data.data[index + 2] = c.b;
+                    buffer_data.data[index + 3] = 255;
+
+
+                }
+            }
+
+        }
+
+
+    }
+
+    function h_line(xx1, xx2, yy, r,g,b)
+    {
+        var x1 = Math.round(xx1);
+        var x2 = Math.round(xx2);
+        var y = Math.round(yy);
+
+        if (x2 < x1)
+        {
+            var t = x2;
+            x2 = x1;
+            x1 = t;
+        }
+        for (var x=x1; x<=x2; x++)
+        {
+          pixel(buffer_data, x, y, r,g,b);
+        }
+    }
+
+    function line(x1, y1, x2, y2, col, width)
+    {
+        var w=3; if (width) w = width;
+        buffer_context.beginPath();
+        buffer_context.moveTo(x1, y1);
+        buffer_context.lineTo(x2, y2);
+        buffer_context.lineWidth=w;
+        buffer_context.strokeStyle = col;
+        buffer_context.stroke();
+    }
+
+    function render()
+    {
+
+        buffer_context.clearRect(0,0,buffer.width, buffer.height);
+        buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        //test_floor2();
+        //return;
+
+
+        // VSD algorithm here (lol) ideas...
+        //
+        // 1. Portal / Sector based (too manual?)
+
+        var floor_edges = [];
+
+        for (var f=0; f<SCREEN_WIDTH; f++) {
+            floor_edges[f] = {};
+            floor_edges[f].start = -1;
+            floor_edges[f].fill = -1;
+        }
+
+        var floor_edges2 = [];
+        for (f=0; f<SCREEN_WIDTH; f++)
+            floor_edges2[f] = {y: -1, c: 0};
+
+        var time_start = Date.now();
+
+        //console.clear();
+
+        var player_vc = player_to_tan_angle(player_v);
+
+       // console.log("Player angle = %f (tanangle = %f)", player_v, player_vc);
+
+
+        for (var ldc=0; ldc<linedefs.length; ldc++)
+        {
+            var ld = linedefs[ldc];
+
+            // Get the global/world angle of wall endpoints... relative to viewpoint (translate to origin)
+            var la1 = point_to_angle(ld.x1, ld.y1);
+            var la2 = point_to_angle(ld.x2, ld.y2);
+
+            var wall_angle = angle_between(ld.x1, ld.y1, ld.x2, ld.y2);
+            wall_angle += 180;
+            if (wall_angle > 359) wall_angle -=360;
+
+            //console.log("wall %d: angle = %f", ldc, wall_angle);
+
+
+            // Subtract player-viewpoint angle to move walls into player-space frustum
+            la1 -= player_vc;
+            la2 -= player_vc;
+
+           // console.log("pv = %f, pc = %f", player_v, to_clip_angle(player_v));
+
+            //console.log("PAng=%d (%d), Player->Point ang = %f", player_v_clip, player_v, la1);
+
+
+            var tex_obj;
+            var tex_u_virtual;
+            var tex_width;
+            var tex_inc;
+
+
+
+            if (la1 > -90 && la1 <= 90 && la2 > -90 && la2 <= 90 )
+            {
+                // TODO: eliminate square roots (use trig or factor in squared-distance to perspective calcs)
+                var d1 = distance(player_x, player_y, ld.x1, ld.y1);
+                var d2 = distance(player_x, player_y, ld.x2, ld.y2);
+
+
+                // Get height of the wall endpoints
+                var lh1 = (ld.h / d1) *  focal_length;
+                var lh2 = (ld.h / d2) *  focal_length;
+
+                // Get screenspace 'X' of wall endpoints
+                var lx1 = Math.round(viewangletox(la1));
+                var lx2 = Math.round(viewangletox(la2));
+
+                var lhinc = (lh2-lh1) / (lx2-lx1);
+                var dist_inc = (d2-d1) / (lx2-lx1);
+
+                var w_x = ld.x1;
+                var w_y = ld.y1;
+
+                var w_xe = ld.x2;
+                var w_ye = ld.y2;
+
+
+
+                var w_xinc = (ld.x2 - ld.x1) / (lx2-lx1);
+                var w_yinc = (ld.y2 - ld.y1) / (lx2-lx1);
+
+                var lcur_h = lh1;
+                var lcur_dist = d1;
+
+
+                // Calculate y 'base' position of the two wall (line) endpoints (heightA, heightB)
+                // and then interpolate linearly across these to counter 'fisheye' polar->cart effect
+                // n.b. will this hold-up mathematically/graphically with more map complexity? Erm, yeah?
+
+
+                // Height A
+                var heightA = (ld.h / d1) *  focal_length;
+                var eyeHeight = player_height * 0.75;
+                var player_z = objectZ = 0;
+                var base = (eyeHeight + player_z - objectZ) * 2;
+                var horizonOffset = (heightA - Math.floor(base / d1 * focal_length)) / 2;
+                var endA = parseInt((projection_height / 2 - horizonOffset) + heightA / 2);
+
+                // Height B
+                var heightB = (ld.h / d2) *  focal_length;
+                eyeHeight = player_height * 0.75;
+                base = (eyeHeight + player_z - objectZ) * 2;
+                horizonOffset = (heightB - Math.floor(base / d2 * focal_length)) / 2;
+                var endB = parseInt((projection_height / 2 - horizonOffset) + heightB / 2);
+
+                var cur_height = heightA;
+                var inc_height = (heightB - heightA) / (lx2 - lx1);
+
+                var cur_end = endA;
+                var inc_end = (endB - endA) / (lx2 - lx1);
+
+                var tex_ready = false;
+
+                var wall_height = ld.h;
+
+
+                if (textures[ld.t])
+                {
+                    tex_obj = textures[ld.t];
+                    tex_u_virtual = 0;
+                    tex_width = tex_obj.w;
+                    //console.log("width = %d", tex_obj.w);
+                    tex_inc = ld.w / (lx2 - lx1);
+                    tex_ready = true;
+
+                    var P_tex_u_start = 0;
+                    var P_tex_u_end = ld.w-1; // 'virtual' (tiled) texture endpoint
+
+                    var P_tex_z_start = d1; // Zs of wall start & end points
+                    var P_tex_z_end = d2;
+
+
+
+                    var P_tex_u = (P_tex_u_start / P_tex_z_start);
+
+                    var P_tex_u_inc = ((P_tex_u_end / P_tex_z_end) - P_tex_u) / (lx2 - lx1);
+
+                    var P_tex_z = (1 / P_tex_z_start);
+                    var P_tex_z_inc = ((1 / P_tex_z_end) - P_tex_z) / (lx2 - lx1);
+
+
+
+/*
+                    //var htex = 192; //tex_obj.h;
+                    var tex_height = tex_obj.h;
+                    //var hwall = 150;
+                    var wall_units = ld.h;
+                    //var hproj =73;
+                    var wall_pixels = (heightB - heightA);
+
+                    //var vreps = hwall / htex;
+                    var tex_repeats = wall_units / tex_height;
+
+                    //console.log("Wall height (units) = %f\nTex height (pixels) = %d\nTex reps = %f", hwall, htex, vreps);
+
+                    //if (vreps <= 1)
+                    if (tex_repeats >1)
+                    {
+                        //console.log("Texture 'V' (0 -> %f) stretched %f pixels", hwall, hproj);
+
+                    //} else {
+
+                        var tex_whole_repeats = Math.floor(tex_repeats);
+                        var tex_fraction = wall_units % tex_height;
+                        var wall_scale_ratio = wall_pixels / wall_units; // wall's worldunits -> screenpixels scale ratio
+
+                        //console.log("Texture 'V' repeated %d times with extra %f units of wall covered with top %f V texels", full_vreps, v_extra, v_extra);
+
+                        var tex_one_scaled = Math.round(wall_scale_ratio * tex_height);
+                        if (tex_one_scaled < 0)
+                        {
+                            console.log("!!!!!! %f * %f ", wall_scale_ratio, tex_height);
+                        }
+                        //var full_scaled_size = Math.round(scale_ratio * htex);
+                        //var all_full_scaled_size = full_scaled_size * full_vreps;
+                        var remainder = wall_pixels - (tex_one_scaled * tex_whole_repeats);
+
+                        //console.log("Scaled size (%d * %f pixels = %f) + %d pixels remainder",  full_vreps, full_scaled_size, all_full_scaled_size, remainder );
+
+                       // for (var vr=0; vr<full_vreps; vr++)
+                       // {
+
+                       // }
+
+                    }*/
+
+                }
+
+                //console.log("Distance from camera: %f   and   %f", d1, d2);
+                if (ldc == 0)
+                //dbg_set("Dist: "+d1+" -> "+d2);
+
+
+
+                var tus = "";
+
+                //console.log("WALL draw angle from %f to %f", x_to_ray_angle(lx1, player_v),x_to_ray_angle(lx2, player_v));
+
+                // for this line (wall) scan from screen x1 -> x2 and draw a vertical slice per 'x'
+                if (lx1 < 0 || lx2 > SCREEN_WIDTH)
+                {
+
+                   //if (lx1 < 0) lx1 = 0;
+
+                }
+                for (var lx=lx1; lx<=lx2; lx++)
+                {
+                  //  var ly1a = (projection_height / 2) - lcur_h/2;
+                  //  var ly1b = (projection_height / 2) + lcur_h/2;
+
+                    var start = Math.floor(cur_end - cur_height);
+                    var icur_height = Math.round(cur_height);
+
+                    var tu = Math.round(tex_u_virtual % tex_width);
+
+                    //tus += String(tu)+',';
+
+                    if (!tex_ready)
+                    {
+                        //below: horrendously slow I imagine
+                        buffer_context.beginPath();
+                        buffer_context.moveTo(lx, start);
+                        buffer_context.lineTo(lx, cur_end);
+
+                        buffer_context.strokeStyle = ld.c;
+                        buffer_context.stroke();
+                    } else {
+
+                        //var htex = 192; //tex_obj.h;
+                        var tex_height = tex_obj.h;
+                        //var hwall = 150;
+                        var wall_units = ld.h;
+                        //var hproj =73;
+                        var wall_pixels = icur_height;//(heightB - heightA);
+
+                        //var vreps = hwall / htex;
+                        var tex_repeats = wall_units / tex_height;
+
+                        //console.log("Wall height (units) = %f\nTex height (pixels) = %d\nTex reps = %f", hwall, htex, vreps);
+
+                        //if (vreps <= 1)
+                        if (tex_repeats > 999)// > 1)
+                        {
+                            //console.log("Texture 'V' (0 -> %f) stretched %f pixels", hwall, hproj);
+
+                            //} else {
+
+                            var tex_whole_repeats = Math.floor(tex_repeats);
+                            var tex_fraction = wall_units % tex_height;
+                            var wall_scale_ratio = wall_pixels / wall_units; // wall's worldunits -> screenpixels scale ratio
+
+                            //console.log("Texture 'V' repeated %d times with extra %f units of wall covered with top %f V texels", full_vreps, v_extra, v_extra);
+
+                            var tex_one_scaled = Math.round(wall_scale_ratio * tex_height);
+                            if (tex_one_scaled < 0)
+                            {
+                                console.log("!!!!!! %f * %f ", wall_scale_ratio, tex_height);
+                            }
+                            //var full_scaled_size = Math.round(scale_ratio * htex);
+                            //var all_full_scaled_size = full_scaled_size * full_vreps;
+                            var remainder = wall_pixels - (tex_one_scaled * tex_whole_repeats);
+
+                            //console.log("Scaled size (%d * %f pixels = %f) + %d pixels remainder",  full_vreps, full_scaled_size, all_full_scaled_size, remainder );
+
+                            // for (var vr=0; vr<full_vreps; vr++)
+                            // {
+
+                            // }
+
+                            for (var vt=0; vt<tex_whole_repeats; vt++)
+                            {
+                                //console.log(tu, tex_height, lx, start, vt, tex_height, tex_one_scaled, tex_whole_repeats);
+                                //console.log(tu, tex_height, lx, start, vt, tex_height, tex_one_scaled);
+                                //console.log(vt, tex_obj.img, tu, tex_height, lx, start + (vt*tex_one_scaled), tex_one_scaled);
+                                //console.log(tex_obj.img, tu, tex_height, lx, start + (vt*tex_one_scaled), tex_one_scaled);
+                                buffer_context.drawImage(tex_obj.img, tu, 0, 1, tex_height, lx, start + (vt*tex_one_scaled), 1, tex_one_scaled);
+                            }
+
+                        } else if (tex_repeats <= 1) {
+                            buffer_context.drawImage(tex_obj.img, tu, 0, 1, wall_units, lx, start, 1, icur_height);
+                            //floor_edges[lx].start = start + icur_height;
+                            //floor_edges[lx].fill = ldc;
+                            //buffer_context.drawImage(tex_obj.img, tu, 0, 1, remainder, lx, start + (tex_whole_repeats*tex_one_scaled), 1, remainder*wall_scale_ratio);
+                            var floor_start = start + icur_height;
+
+                            if (lx >=0 && lx < SCREEN_WIDTH)// && ldc==1)
+                            {
+
+                                floor_edges2[lx].y = floor_start;
+                                floor_edges2[lx].c =  0;//ldc;
+                            }
+
+                        } else if (tex_repeats > 1)
+                        {
+                            var final_u = 0;
+                            if (P_CORRECTION_ON)
+                            {
+                                var P_tex_virtual_u = (P_tex_u / P_tex_z);
+                                var P_u = Math.round(P_tex_virtual_u % tex_width);
+                                final_u = P_u;
+                            } else {
+                                final_u = tu;
+                            }
+
+
+                            buffer_context.drawImage(tex_obj.img, final_u, 0, 1, tex_obj.h, lx, start, 1, icur_height);
+                            var floor_start = start + icur_height;
+
+                            if (lx >=0 && lx < SCREEN_WIDTH)// && ldc==1)
+                            {
+
+                                floor_edges2[lx].y = floor_start;
+                                floor_edges2[lx].c =  ldc;
+
+                                // 21-Feb 7am: player-v is now in regular trig format.
+                                // From the bottom of the wall, take the 180 reverse of the player angle and trace across the floor at this angle as a vertical column starting from wall base
+                                // Use x = cos(mirrorAngle), y = sin(mirrorAngle)
+
+                                //console.log("Screen X:%d = Angle %f", lx, x_to_view_angle[lx]);
+
+                                //console.log("From wall reflection angle = ")
+
+                                //var xa = x_to_view_angle[lx];
+                                //var pa = to_clip_angle(player_v);
+                                //var por = xa + player_v;
+
+                                //var por = xa + pa;
+                                //if (por > 359) por -=360;
+                                //if (por < 0) por += 360;
+
+                                //var rads = rad(to_clip_angle(por));
+                                //var floor_angle = wall_angle - 90;
+                                //if (floor_angle < 0) floor_angle += 360;
+                                //var rads = rad(floor_angle);
+
+/*
+this block commented out on 4th april
+                                floor_edges[lx].x1 = w_x;
+                                floor_edges[lx].y1 = w_y;
+
+                                floor_edges[lx].x2 = w_x + (lcur_dist) * Math.cos(rads);
+                                floor_edges[lx].y2 = w_y + (lcur_dist) * Math.sin(rads);
+
+                                floor_edges[lx].start = floor_start;
+                                floor_edges[lx].fill = ldc;*/
+                            }
+                            //var index = 0;
+
+                            //console.log("Floor from %f to %f", floor_start, 240);
+
+/*
+                            for (var fy=floor_start; fy<240; fy++)
+                            {
+                                index = (lx + fy * SCREEN_WIDTH) * 4;
+                                buffer_data.data[index+0] = 255;
+                                buffer_data.data[index+1] = 0;
+                                buffer_data.data[index+2] = 0;
+                                buffer_data.data[index+3] = 255;
+
+                            }
+
+*/
+                        }
+
+                        //console.log("%s %s %s %s %s %s %s %s %s %s ",tex_obj.img, tu, 0, 1, tex_obj.h, lx, start, 1, cur_height)
+                        //buffer_context.drawImage(tex_obj.img, tu, 0, 1, tex_obj.h, lx, start, 1, cur_height);
+                    }
+
+
+                    w_x += w_xinc;
+                    w_y += w_yinc;
+
+                    lcur_dist += dist_inc;
+
+                    P_tex_u += P_tex_u_inc;
+                    P_tex_z += P_tex_z_inc;
+
+                    cur_end += inc_end;
+                    cur_height += inc_height;
+                    tex_u_virtual += tex_inc;
+
+                }
+
+
+                //if (t == 0)
+                //console.log(tus);
+
+            }
+
+
+        }
+
+
+       buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
+
+
+        render_floor(floor_edges2);
+        if (!onerender) {
+            render_slopes();
+           //onerender=true;
+        }
+        buffer_context.putImageData(buffer_data, 0, 0);
+
+/*
+        for (var fe=0; fe<SCREEN_WIDTH; fe++)
+        {
+            var fstart = floor_edges[fe].start;
+            if (fstart != -1)
+            {
+                var tx = floor_edges[fe].x1;
+                var ty = floor_edges[fe].y1;
+
+                var ix = (player_x - tx) / (SCREEN_HEIGHT - fstart);
+                var iy = (player_y - ty) / (SCREEN_HEIGHT - fstart);
+
+                for ( fy=fstart; fy<SCREEN_HEIGHT; fy++)
+                {
+
+                    var tu = Math.floor(tx % floor_tex_width);
+                    var tv = Math.floor(ty % floor_tex_width);
+
+                    if (tu < 0) tu += floor_tex_width;
+                    if (tv < 0) tv += floor_tex_width;
+
+                    r=0;g=0;b=0;
+
+                    //console.log("tex: [%f,%f]",tu,tv);
+
+                    if (floor_tex[tv][tu] == 1)
+                        r=255;
+
+                    if (floor_tex[tv][tu] == 2)
+                        g=255;
+
+                    tx += ix;
+                    ty += iy;
+
+                    index = (fe + fy * SCREEN_WIDTH) * 4;
+                    buffer_data.data[index+0] = r;
+                    buffer_data.data[index+1] = g;
+                    buffer_data.data[index+2] = b;
+                    buffer_data.data[index+3] = 255;
+
+                }
+            }
+        }
+*/
+
+        /*
+        for (var fe=0; fe<SCREEN_WIDTH; fe++)
+        {
+            var fstart = floor_edges[fe].start;
+            if (fstart != -1)
+            {
+
+                var tx = floor_edges[fe].x1;
+                var ty = floor_edges[fe].y1;
+
+                var ix = (floor_edges[fe].x2 - floor_edges[fe].x1) / (SCREEN_HEIGHT - fstart);
+                var iy = (floor_edges[fe].y2 - floor_edges[fe].y1) / (SCREEN_HEIGHT - fstart);
+
+                //console.log("Floor span (%f, %f) - (%f, %f)", floor_edges[fe].x1, floor_edges[fe].y1, floor_edges[fe].x2, floor_edges[fe].y2);
+
+
+                if (floor_edges[fe].fill == 0) {r=255; g=0;b=0;}
+                if (floor_edges[fe].fill == 1) {r=0; g=128; b=255;}
+                if (floor_edges[fe].fill > 1) {r=64; g=224; b=100;}
+                for (var fy=fstart; fy<SCREEN_HEIGHT; fy++)
+                {
+
+                    var tu = Math.floor(tx % floor_tex_width);
+                    var tv = Math.floor(ty % floor_tex_width);
+
+                    if (tu < 0) tu += floor_tex_width;
+                    if (tv < 0) tv += floor_tex_width;
+
+                    r=0;g=0;b=0;
+
+                    //console.log("tex: [%f,%f]",tu,tv);
+
+                    if (floor_tex[tv][tu] == 1)
+                        r=255;
+
+                    if (floor_tex[tv][tu] == 2)
+                        g=255;
+
+                    tx += ix;
+                    ty += iy;
+
+                    index = (fe + fy * SCREEN_WIDTH) * 4;
+                    buffer_data.data[index+0] = r;
+                    buffer_data.data[index+1] = g;
+                    buffer_data.data[index+2] = b;
+                    buffer_data.data[index+3] = 255;
+
+                }
+            }
+
+        }
+*/
+
+
+
+
+
+
+
+
+//        var time = Date.now() - time_start;
+
+        //console.log("Rendered in %d miliseconds", time);
+    }
+
+
+/*
+    var wall_x1 = 30;
+    var wall_y1 = 100;
+
+    var wall_x2 = 80;
+    var wall_y2 = 120;
+
+    player_x = 50;
+    player_y = 10;
+    player_v = 0;
+
+
+    var angle1 = point_to_angle(wall_x1, wall_y1);
+    var angle2 = point_to_angle(wall_x2, wall_y2);
+
+    var rangle1 = angle1 - player_v;    // Range -90 to 90 == 'visible'
+    var rangle2 = angle2 - player_v;
+
+    console.log("R1 = %f, R2 = %f", rangle1, rangle2);
+
+
+    var wall_height = 64;
+
+    var h1 = (wall_height / distance(player_x, player_y, wall_x1, wall_y1)) *  focal_length;
+    var h2 = (wall_height / distance(player_x, player_y, wall_x2, wall_y2)) *  focal_length;
+
+    var x1 = Math.round(viewangletox(rangle1));
+    var x2 = Math.round(viewangletox(rangle2));
+
+    buffer_context.clearRect(0,0,buffer.width, buffer.height);
+
+    var colour='#ff0000';
+
+    var hinc = (h2-h1) / (x2-x1);
+
+    var cur_h = h1;
+
+    for (var lx=x1; lx<=x2; lx++)
+    {
+        var y1a = (projection_height / 2) - cur_h/2;
+        var y1b = (projection_height / 2) + cur_h/2;
+
+        buffer_context.beginPath();
+        buffer_context.moveTo(lx, y1a);
+        buffer_context.lineTo(lx, y1b);
+        buffer_context.strokeStyle = colour;
+        buffer_context.stroke();
+        cur_h += hinc;
+    }
+*/
+//    for (var t=-30; t<31; t+=1)
+ //   {
+ //       console.log("%d degrees: X = %f", t, viewangletox(t));
+ //   }
+
+    var onerender = false;
+
+    function pixel(buffer, x, y, r, g, b)
+    {
+        if (x < 0) return;
+        if (y < 0) return;
+        if (x >= buffer.width) return;
+        if (y >= buffer.height) return;
+
+        var index = (x + y * SCREEN_WIDTH) * 4;
+        buffer.data[index+0] = r;
+        buffer.data[index+1] = g;
+        buffer.data[index+2] = b;
+        buffer.data[index+3] = 255;
+    }
+
+    function loadtextures(bitmaps)
+    {
+
+
+        for (var t=0; t<bitmaps.length; t++)
+        {
+            var i = new Image();
+            i.index = t;
+            i.src = bitmaps[t];
+
+            i.onload = function()
+            {
+                var texture = {
+                    w: this.width,
+                    h: this.height,
+                    img: this
+                };
+                textures[this.index] = texture;
+            }
+        }
+    }
+
+
+    function precalcs()
+    {
+        // calculate wall widths TODO: move stuff like this to the editor to keep engine simple
+        for (var t=0; t<linedefs.length; t++)
+        {
+            linedefs[t].w = distance(linedefs[t].x1, linedefs[t].y1, linedefs[t].x2, linedefs[t].y2)
+
+            //console.log("wall %d = [%f x %f]", t, linedefs[t].w, linedefs[t].h);
+
+        }
+
+    }
+
+
+    var P_CORRECTION_ON = true;
+
+    function move(e)
+    {
+
+        //console.log("Key = "+ e.keyCode);
+
+        if (e.keyCode == 189) // '-'
+        {
+            player_height -=2;
+        }
+
+        if (e.keyCode == 187) // '='
+        {
+            player_height += 2;
+        }
+
+
+        if (e.keyCode == 37)
+        {
+            player_v +=6;
+            //if (player_v >= 180) player_v = -(180-(player_v-180));
+            if (player_v > 359) player_v -= 360;
+        }
+
+        if (e.keyCode == 39)
+        {
+            player_v -= 6;
+            //if (player_v < -180) player_v = 180 + (-player_v - 180);
+             if (player_v < 0) player_v += 360;
+        }
+
+        if (e.keyCode == 13)
+        {
+            P_CORRECTION_ON = !P_CORRECTION_ON;
+        }
+
+
+        if (e.keyCode == 38)
+        {
+            var rads = rad((player_v));
+
+            player_x += speed * Math.cos(rads);
+            player_y += speed * Math.sin(rads);
+
+        }
+
+        if (e.keyCode == 40)
+        {
+            var rads = rad((player_v));
+
+            player_x -= speed * Math.cos(rads);
+            player_y -= speed * Math.sin(rads);
+
+        }
+
+        //if (player.v < 0) player.v = 359;
+        //if (player.v > 359) player.v = 0;
+
+        //writeln(player.x+", "+player.y+", "+player.v);
+
+        render();
+    }
+
+
+
+
+
+
+    function clip_line(x1, y1, x2, y2,  xmin,  ymin,  xmax,  ymax)
+    {
+        var deltaX, deltaY, p, q;
+        var u1 = 0.0, u2 = 1.0;
+        var r;
+        var isVisible = true;
+
+        var lineout = {
+            x1:0,
+            y1:0,
+            x2:0,
+            y2:0,
+            visible: true
+        };
+
+
+        deltaX = (x2 - x1);
+        deltaY = (y2 - y1);
+
+        /*
+         * left edge, right edge, bottom edge and top edge checking
+         */
+
+        var pPart=[];//new Array();
+        var qPart=[];//new Array();
+
+        pPart[0] = -1 * deltaX; pPart[1] = deltaX; pPart[2] = -1 * deltaY; pPart[3] = deltaY;
+        qPart[0] = x1 - xmin; qPart[1]=xmax - x1; qPart[2] = y1 - ymin; qPart[3] = ymax - y1;
+
+        var accept = true;
+
+        for (var i = 0; i < 4; i++)
+        {
+            p = pPart[i];
+            q = qPart[i];
+
+            if (p == 0 && q < 0)
+            {
+                accept = false;
+                break;
+            }
+
+            r = q / p;
+
+            if (p < 0)
+            {
+                u1 = Math.max(u1, r);
+            }
+
+            if (p > 0)
+            {
+                u2 = Math.min(u2, r);
+            }
+
+            if (u1 > u2)
+            {
+                accept = false;
+                break;
+            }
+            //System.out.println(u1 +" " + u2);
+
+        }
+
+        if (accept)
+        {
+            if (u2 < 1)
+            {
+                x2 = (x1 + u2 * deltaX);
+                y2 = (y1 + u2 * deltaY);
+            }
+            if (u1 > 0)
+            {
+                x1 = (x1 + u1 * deltaX);
+                y1 = (y1 + u1 * deltaY);
+            }
+
+            //set(x1, y1, x2, y2);
+            lineout.visible = true;
+            lineout.x1 = x1;
+            lineout.y1 = y1;
+            lineout.x2 = x2;
+            lineout.y2 = y2;
+            lineout.dx = deltaX;
+            lineout.dy = deltaY;
+
+        }
+        else
+        {
+            isVisible = false;
+            //set(-1, -1, -1, -1);
+            lineout.visible = false;
+            lineout.x1 = -1;
+            lineout.y1 = -1;
+            lineout.x2 = -1;
+            lineout.y2 = -1;
+        }
+
+        return lineout;
+
+    }
+
+    function intersect(x1, y1, x2, y2, x3, y3, x4, y4)
+    {
+        var x = cross(x1, y1, x2, y2);
+        var y = cross(x3, y3, x4, y4);
+
+        var det = cross(x1-x2, y1-y2, x3-x4, y3-y4);
+        x = cross(x, x1-x2, y, x3-x4) / det;
+        y = cross(x, y1-y2, y, y3-y4) / det;
+
+        return {x: x, y: y};
+
+    }
+    function cross(x1, y1, x2, y2)
+    {
+        return x1*y2 - y1*x2;
+    }
+
+    function playerUpdate()
+    {
+
+        if (Key.isDown(Key.MINUS))
+        {
+            player_height -=2;
+        }
+
+        if (Key.isDown(Key.EQUALS))
+        {
+            player_height +=2;
+        }
+
+        if (Key.isDown(Key.UP))
+        {
+            var rads = rad((player_v));
+
+            player_x += speed * Math.cos(rads);
+            player_y += speed * Math.sin(rads);
+        }
+
+        if (Key.isDown(Key.DOWN))
+        {
+            var rads = rad((player_v));
+
+            player_x -= speed * Math.cos(rads);
+            player_y -= speed * Math.sin(rads);
+        }
+
+        if (Key.isDown(Key.LEFT))
+        {
+            player_v +=6;
+            //if (player_v >= 180) player_v = -(180-(player_v-180));
+            if (player_v > 359) player_v -= 360;
+        }
+
+        if (Key.isDown(Key.RIGHT))
+        {
+            player_v -= 6;
+            //if (player_v < -180) player_v = 180 + (-player_v - 180);
+            if (player_v < 0) player_v += 360;
+        }
+
+        if (Key.isDown(Key.ENTER))
+        {
+            P_CORRECTION_ON = !P_CORRECTION_ON;
+        }
+    }
+
+
+    var lastSecond = Date.now();
+
+    var frameAverageNum = 10;
+    var frameCount = 0;
+    var frameTotal = 0;
+
+    function GameLoop()
+    {
+        render();
+        playerUpdate();
+
+        var thisFrame = Date.now() - lastSecond;
+
+        var frames = 1000 / thisFrame;
+        frameTotal += frames;
+        frameCount++;
+
+        if (frameCount == frameAverageNum)
+        {
+            var fps = Math.round((frameTotal / frameAverageNum)*10) / 10;
+            frameTotal = fps;
+            frameCount = 0;
+            dbg_set(frameTotal);
+        }
+
+
+
+        lastSecond = Date.now();
+
+    }
+
+
+
+    loadtextures(bitmaps);
+    precalcs();
+    init_tables();
+    //render();
+
+    var Key = {
+
+        _pressed: {},
+
+        LEFT:   37,
+        UP:     38,
+        RIGHT:  39,
+        DOWN:   40,
+        MINUS: 189,
+        EQUALS: 187,
+        ENTER: 13,
+
+        isDown: function(keyCode) {
+            return this._pressed[keyCode]
+        },
+
+        onKeydown: function(event) {
+            this._pressed[event.keyCode] = true;
+        },
+
+        onKeyup: function(event) {
+            delete this._pressed[event.keyCode];
+        }
+    };
+
+    window.addEventListener('keyup', function(event) { Key.onKeyup(event);}, false);
+    window.addEventListener('keydown', function(event) { Key.onKeydown(event);}, false);
+
+
+    setInterval(GameLoop, 1000 / TARGET_FPS);
+
+</script>
+</html>
