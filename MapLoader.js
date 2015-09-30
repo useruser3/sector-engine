@@ -7,6 +7,8 @@ function MapSector(vert_index, vert_count, height)
     this.walls = [];
     this.neighbours = [];
 
+
+
     this.calc_neighbours = function(vertices)
     {
         for (var t=this.vert_index; t<this.vert_index+this.vert_count; t++)
@@ -16,9 +18,10 @@ function MapSector(vert_index, vert_count, height)
                 this.neighbours.push(v.next_sector);
 
         }
+
     };
 
-    this.extract_walls = function()
+    this.extract_walls = function(vertices)
     {
         this.walls = [];
 
@@ -26,13 +29,15 @@ function MapSector(vert_index, vert_count, height)
         {
             this.walls.push({
                 p1: t,
-                p2: t+1
+                p2: t+1,
+                portalTo: vertices[t].next_sector
             })
         }
 
         this.walls.push({
-            p1: t+1,
-            p2: this.vert_index
+            p1: t,
+            p2: this.vert_index,
+            portalTo: vertices[t].next_sector
         })
 
     };
@@ -56,22 +61,43 @@ function Map()
 
     var that = this;
 
-    this.load = function(path, cb)
+    this.load = function(path, scale, cb)
     {
         this._getFile(path, function(){
-            cb(that.parse());
-
+            that.parse();
+            that.finalise(scale);
+            cb();
         });
 
     };
 
-    this.finalise = function()
+    this.finalise = function(scale)
     {
-        for (var t=0; t<this.sectors.length; t++)
+        var ANGLE_SCALE = 2048;
+
+        var sf = scale || 1.0;
+        // scale world objects (BUILD is integer only, so scales are enormous for precision)
+
+        this.player.start_x *= sf;
+        this.player.start_y *= sf;
+        this.player.start_z *= sf;
+        this.player.start_ang = (this.player.start_ang / ANGLE_SCALE) * 360;
+
+        for (var t=0; t<this.vertices.length; t++)
+        {
+            this.vertices[t].x *= sf;
+            this.vertices[t].y *= sf;
+        }
+
+        for (t=0; t<this.sectors.length; t++)
         {
             this.sectors[t].calc_neighbours(this.vertices);
-            this.sectors[t].extract_walls();
+            this.sectors[t].extract_walls(this.vertices);
+
+            this.sectors[t].height *= sf * 0.1;
         }
+
+
     };
 
     this._getFile = function(path, callback)
@@ -119,9 +145,11 @@ function Map()
             var ceiling_z = reader.getInt32(fp, true); fp+=4;
             var floor_z = reader.getInt32(fp, true); fp+=4;
 
+            console.log("celing = "+ceiling_z+", floor = "+floor_z);
+
             fp += 28;
 
-            this.sectors.push(new MapSector(wall_ptr, wall_num, ceiling_z-floor_z));
+            this.sectors.push(new MapSector(wall_ptr, wall_num, floor_z-ceiling_z));
 
         }
 
@@ -143,7 +171,6 @@ function Map()
             fp += 18;
         }
 
-        this.finalise();
     }
 
 

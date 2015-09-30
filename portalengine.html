@@ -7,11 +7,8 @@
     <script src="MapLoader.js"></script>
 
     <script>
-            var ml = new Map();
 
-            ml.load('./data/alantest.map', function(){
-                console.log(ml);
-            });
+
 
 
 
@@ -163,6 +160,94 @@ player	2 6	0	0
     function vxs(x0,y0, x1,y1)
     {
         return ((x0)*(y1) - (x1)*(y0));
+    }
+
+    function RenderSector2(sectorId)
+    {
+        var sector = Game.map.sectors[sectorId];
+
+        for (var p=0; p<sector.walls.length; p++)
+        {
+            var wall = sector.walls[p];
+
+            var wall_colour = '#aaaaaa';
+            if (wall.portalTo != -1) wall_colour = '#ff0000';
+
+            var vx1 = Game.map.vertices[wall.p1].x, vy1 = Game.map.vertices[wall.p1].y;
+            var vx2 = Game.map.vertices[wall.p2].x, vy2 = Game.map.vertices[wall.p2].y;
+
+            vx1 -= player.x; vy1 -= player.y;
+            vx2 -= player.x; vy2 -= player.y;
+
+            var r1 = Rotate2d(vx1, vy1, player.v);
+            var r2 = Rotate2d(vx2, vy2, player.v);
+
+            var sheight = sector.height;
+
+
+
+            if (r1.z > 0 || r2.z > 0)
+            {
+                var cp1 = intersect2(r1.x, r1.z, r2.x, r2.z, -0.0001, 0.0001, -20, 5);
+                var cp2 = intersect2(r1.x, r1.z, r2.x, r2.z,  0.0001, 0.0001, 20, 5);
+
+                if (r1.z <= 0.0001)
+                {
+                    if (cp1.y > 0) {
+                        r1.x = cp1.x;
+                        r1.z = cp1.y;
+                    } else {
+                        r1.x = cp2.x;
+                        r1.z = cp2.y;
+                    }
+                }
+
+                if (r2.z <= 0.0001)
+                {
+                    if (cp1.y > 0) {
+                        r2.x = cp1.x;
+                        r2.z = cp1.y;
+                    } else {
+                        r2.x = cp2.x;
+                        r2.z = cp2.y;
+                    }
+                }
+
+                var edge1 = project_wall(sheight, r1.z);
+                var edge2 = project_wall(sheight, r2.z);
+
+
+                var x1 = (-r1.x / r1.z) * focal_length;
+                var x2 = (-r2.x / r2.z) * focal_length;
+
+                var w_width = (x2 - x1)+1;
+
+                var  y_bottom = edge1.y_bottom;
+                var dy_bottom = (edge2.y_bottom - edge1.y_bottom) / w_width;
+
+                var  w_height = edge1.height;
+                var dw_height = (edge2.height - edge1.height) / w_width;
+
+                for (var wx=x1; wx < w_width; wx++)
+                {
+                    y_bottom += dy_bottom;
+                    w_height += dw_height;
+                }
+
+
+                ///** WIREFRAME MODE -
+                line(x1, edge1.y_bottom - edge1.height, x2, edge2.y_bottom - edge2.height,wall_colour);
+                line(x1, edge1.y_bottom, x2, edge2.y_bottom,wall_colour);
+
+                line(x2, edge2.y_bottom - edge2.height, x2, edge2.y_bottom,wall_colour);
+                line(x1, edge1.y_bottom - edge1.height, x1, edge1.y_bottom,wall_colour);
+
+
+            }
+
+
+        }
+
     }
 
 
@@ -360,23 +445,22 @@ player	2 6	0	0
     {
         buffer_context.clearRect(0,0,buffer.width, buffer.height);
 
-        var sector = map.sectors[player.sector];
+        //var sector = map.sectors[player.sector];
 
 
-        for (var s=0; s<sector.neighbours.length; s++)
+
+//        for (var s=0; s<sector.neighbours.length; s++)
         {
             //if (sector.neighbours[s] > -1) RenderSector(sector.neighbours[s]);
         }
 
-        for (var t=0; t<map.sectors.length; t++)
+        for (var t=0; t<Game.map.sectors.length; t++)
         {
-           RenderSector(t);
+           RenderSector2(t);
         }
 
 
-
-
-        status();
+        //status();
 
     }
 
@@ -422,7 +506,41 @@ player	2 6	0	0
         return value;
     }
 
+    var Game = {};
+
     function Initialise()
+    {
+        Game.map = new Map();
+
+        Game.map.load('./data/alantest.map', 0.025, function(){
+
+            player.x = Game.map.player.start_x;
+            player.y = Game.map.player.start_y;
+            player.v = Game.map.player.start_ang;
+            player.height = 25;
+
+            player.sector = Game.map.player.start_sector;
+
+            //var start = get_centre_of_sector(player.sector);
+
+            //console.log("Sector %d centre = (%f, %f)", player.sector, start.x, start.y);
+
+            player.z = Game.map.player.start_z;
+
+            //window.addEventListener("keydown", move, true);
+            window.addEventListener('keyup', function(event) {Key.onKeyup(event);}, false);
+            window.addEventListener('keydown', function(event) {Key.onKeydown(event);}, false);
+            window.addEventListener('keydown', move, false);
+
+            Render();
+
+        });
+
+
+
+    }
+
+    function Initialiseold()
     {
         map = readData();
 
@@ -507,6 +625,11 @@ player	2 6	0	0
     function move_player(dx, dy)
     {
         var px = player.x, py = player.y;
+
+        player.x += dx;
+        player.y += dy;
+
+        return;
 
         var sector = map.sectors[player.sector];
 
