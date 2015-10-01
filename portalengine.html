@@ -4,15 +4,9 @@
 <head>
     <title>Portal/Sector Render</title>
     <script src="./util/util.js"></script>
+    <script src="projection3d.js"></script>
     <script src="MapLoader.js"></script>
 
-
-    <script>
-
-
-
-
-    </script>
 
 </head>
 <body>
@@ -31,6 +25,7 @@
 
     var SCREEN_WIDTH = 640;
     var SCREEN_HEIGHT = 480;
+    var SCREEN_FOV = 60;
 
     document.getElementById('screen').width = SCREEN_WIDTH;
     document.getElementById('screen').height = SCREEN_HEIGHT;
@@ -39,7 +34,7 @@
     var buffer_context = buffer.getContext('2d');
     var buffer_data = buffer_context.getImageData(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    var fov = 60;
+    var fov = SCREEN_FOV;
     var vfov = deg(2 * Math.atan(Math.tan(rad(fov)/2) * (SCREEN_HEIGHT/SCREEN_WIDTH)));
     var projection_width = SCREEN_WIDTH;
     var projection_centre = projection_width / 2;
@@ -63,10 +58,12 @@
 
     function Initialise()
     {
+        Game.scene = new PerspectiveProjector(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_FOV);
+
         Game.map = new Map();
         Game.fps = 30;
 
-        Game.map.load('./maps/alantest.map', 0.025, function(){
+        Game.map.load('./maps/alantest2.map', 0.025, function(){
 
             player.x = Game.map.player.start_x;
             player.y = Game.map.player.start_y;
@@ -95,10 +92,10 @@
 
         //var rx1 = x * Math.cos(rv) - y * Math.sin(rv);
         //var rz1 = y * Math.cos(rv) + x * Math.sin(rv);
-        //var rx = x * Math.sin(rv) - y * Math.cos(rv);
-        //var rz = x * Math.cos(rv) + y * Math.sin(rv);
-        var rx = x * c - y * s;
-        var rz = x * s + y * c;
+        var rx = x * Math.sin(rv) - y * Math.cos(rv);
+        var rz = x * Math.cos(rv) + y * Math.sin(rv);
+        //var rx = x * c - y * s;
+        //var rz = x * s + y * c;
 
         return {x: rx, z: rz};
     }
@@ -180,61 +177,76 @@
 
             var sheight = sector.height;
 
-            if (r1.z > 0 || r2.z > 0)
+            // completely off player's fov, move to next...
+            if (r1.z <=0 && r2.z <=0) continue;
+
+            var cp1 = intersect2(r1.x, r1.z, r2.x, r2.z, -0.0001, 0.0001, -20, 5);
+            var cp2 = intersect2(r1.x, r1.z, r2.x, r2.z,  0.0001, 0.0001, 20, 5);
+
+            if (r1.z <= 0.0001)
             {
-                var cp1 = intersect2(r1.x, r1.z, r2.x, r2.z, -0.0001, 0.0001, -20, 5);
-                var cp2 = intersect2(r1.x, r1.z, r2.x, r2.z,  0.0001, 0.0001, 20, 5);
-
-                if (r1.z <= 0.0001)
-                {
-                    if (cp1.y > 0) {
-                        r1.x = cp1.x;
-                        r1.z = cp1.y;
-                    } else {
-                        r1.x = cp2.x;
-                        r1.z = cp2.y;
-                    }
+                if (cp1.y > 0) {
+                    r1.x = cp1.x;
+                    r1.z = cp1.y;
+                } else {
+                    r1.x = cp2.x;
+                    r1.z = cp2.y;
                 }
+            }
 
-                if (r2.z <= 0.0001)
-                {
-                    if (cp1.y > 0) {
-                        r2.x = cp1.x;
-                        r2.z = cp1.y;
-                    } else {
-                        r2.x = cp2.x;
-                        r2.z = cp2.y;
-                    }
+            if (r2.z <= 0.0001)
+            {
+                if (cp1.y > 0) {
+                    r2.x = cp1.x;
+                    r2.z = cp1.y;
+                } else {
+                    r2.x = cp2.x;
+                    r2.z = cp2.y;
                 }
+            }
 
-                var edge1 = project_wall(sheight, r1.z);
-                var edge2 = project_wall(sheight, r2.z);
+            var we = Game.scene.getEdge(player, r1, r2, sector.floor_height, sector.ceiling_height);
+
+            if (wall.portalTo != -1)
+            {
+                var nextSector = Game.map.sectors[wall.portalTo];
+                var portalEdge = Game.scene.projectPortalSector(we, r1, r2, nextSector.floor_height, nextSector.ceiling_height);
+            }
+
+            //vertical edge sides of wall
+            line(we.x1, we.y1a, we.x1, we.y1b, wall_colour);
+            line(we.x2, we.y2a, we.x2, we.y2b, wall_colour);
+
+            //horz
+            line(we.x1, we.y1a, we.x2, we.y2a, wall_colour);
+            line(we.x1, we.y1b, we.x2, we.y2b, wall_colour);
 
 
+
+            if (1 == 0) {
                 var x1 = (-r1.x / r1.z) * focal_length;
                 var x2 = (-r2.x / r2.z) * focal_length;
 
-                var w_width = (x2 - x1)+1;
+                var w_width = (x2 - x1) + 1;
 
-                var  y_bottom = edge1.y_bottom;
+                var y_bottom = edge1.y_bottom;
                 var dy_bottom = (edge2.y_bottom - edge1.y_bottom) / w_width;
 
-                var  w_height = edge1.height;
+                var w_height = edge1.height;
                 var dw_height = (edge2.height - edge1.height) / w_width;
 
-                for (var wx=x1; wx < w_width; wx++)
-                {
+                for (var wx = x1; wx < w_width; wx++) {
                     y_bottom += dy_bottom;
                     w_height += dw_height;
                 }
-
-
-                ///** WIREFRAME MODE -
                 line(x1, edge1.y_bottom - edge1.height, x2, edge2.y_bottom - edge2.height,wall_colour);
                 line(x1, edge1.y_bottom, x2, edge2.y_bottom,wall_colour);
 
                 line(x2, edge2.y_bottom - edge2.height, x2, edge2.y_bottom,wall_colour);
                 line(x1, edge1.y_bottom - edge1.height, x1, edge1.y_bottom,wall_colour);
+
+
+                ///** WIREFRAME MODE -
 
                 var steps = x2-x1;
                 var ytop1 = edge2.y_bottom - edge2.height;
@@ -255,9 +267,8 @@
                     ys += ytopinc;
                     ye += ybotinc;
                 }
-
-
             }
+
 
 
         }
@@ -413,13 +424,13 @@
         if (e.keyCode == 187) // '='
             player.height += 2;
 */
-        if (Key.isDown(Key.LEFT))
+        if (Key.isDown(Key.RIGHT))
         {
             player.v +=6;
             if (player.v > 359) player.v -= 360;
         }
 
-        if (Key.isDown(Key.RIGHT))
+        if (Key.isDown(Key.LEFT))
         {
             player.v -= 6;
             if (player.v < 0) player.v += 360;
@@ -427,17 +438,17 @@
 
         if (Key.isDown(Key.UP))
         {
-            var rads = rad((player.v - 90) - fov/2);
+            var rads = rad((player.v - 0) + 0);
             dx = (speed * Math.cos(rads));
-            dy = -(speed * Math.sin(rads));
+            dy = (speed * Math.sin(rads));
 
         }
 
         if (Key.isDown(Key.DOWN))
         {
-            var rads = rad((player.v-90) - fov/2);
+            var rads = rad((player.v-0)+  0);
             dx = -(speed * Math.cos(rads));
-            dy = (speed * Math.sin(rads));
+            dy = -(speed * Math.sin(rads));
         }
 
         move_player(dx, dy);

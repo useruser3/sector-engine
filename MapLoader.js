@@ -1,12 +1,12 @@
 
-function MapSector(vert_index, vert_count, height)
+function MapSector(vert_index, vert_count, floorz, ceilz)
 {
     this.vert_index = vert_index;
     this.vert_count = vert_count;
-    this.height = height;
     this.walls = [];
     this.neighbours = [];
-
+    this.floor_height = floorz;
+    this.ceiling_height = ceilz;
 
 
     this.calc_neighbours = function(vertices)
@@ -105,6 +105,8 @@ function Map()
             this.sectors[t].extract_walls(this.vertices);
 
             this.sectors[t].height *= sf * 0.1;
+            this.sectors[t].floor_height *= sf * 3;
+            this.sectors[t].ceiling_height *= sf * 3;
         }
 
 
@@ -157,7 +159,7 @@ function Map()
 
             fp += 28;
 
-            this.sectors.push(new MapSector(wall_ptr, wall_num, floor_z-ceiling_z));
+            this.sectors.push(new MapSector(wall_ptr, wall_num, floor_z, ceiling_z));
 
         }
 
