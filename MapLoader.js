@@ -63,11 +63,13 @@ function Map()
 
     this.load = function(path, scale, cb)
     {
-        this._getFile(path, function(){
-            that.parse();
-            that.finalise(scale);
+        this._getFile(path, Bind(function(){
+            this.parse();
+
+            this.finalise(scale);
+            //console.log(this);
             cb();
-        });
+        }, this));
 
     };
 
@@ -83,11 +85,19 @@ function Map()
         this.player.start_z *= sf;
         this.player.start_ang = (this.player.start_ang / ANGLE_SCALE) * 360;
 
-        for (var t=0; t<this.vertices.length; t++)
+        var bigY =0;
+        for (var t=0; t< this.vertices.length; t++)
+            if (this.vertices[t].y > bigY) bigY = this.vertices[t].y;
+
+        for (t=0; t<this.vertices.length; t++)
         {
+            //this.vertices[t].y = -this.vertices[t].y;
+            //this.vertices[t].y += bigY;
+
             this.vertices[t].x *= sf;
             this.vertices[t].y *= sf;
         }
+        console.log(this.vertices);
 
         for (t=0; t<this.sectors.length; t++)
         {
@@ -144,8 +154,6 @@ function Map()
 
             var ceiling_z = reader.getInt32(fp, true); fp+=4;
             var floor_z = reader.getInt32(fp, true); fp+=4;
-
-            console.log("celing = "+ceiling_z+", floor = "+floor_z);
 
             fp += 28;
 
