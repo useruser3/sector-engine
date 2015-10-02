@@ -4,13 +4,13 @@
 <head>
     <title>Portal/Sector Render</title>
     <script src="./util/util.js"></script>
-    <script src="projection3d.js"></script>
-    <script src="MapLoader.js"></script>
+    <script src="./math/Projection3d.js"></script>
+    <script src="./math/Interpolator.js"></script>
+    <script src="./util/MapLoader.js"></script>
 
 
 </head>
 <body>
-
 
 <canvas id="screen" width="320" height="240"
         style="border:1px solid #000000; float: left">
@@ -208,7 +208,10 @@
             var rel_floor_height = sector.floor_height - player.z;
             var rel_ceil_height = sector.ceiling_height - player.z;
 
+            // we = wall edge
             var we = Game.scene.getEdge(player, r1, r2, rel_floor_height, rel_ceil_height);
+
+            if (we.x1 >= we.x2) continue; // wall is not facing us, don't draw
 
             if (wall.portalTo != -1)
             {
@@ -217,7 +220,8 @@
                 var next_rel_floor_height = nextSector.floor_height - player.z;
                 var next_rel_ceil_height = nextSector.ceiling_height - player.z;
 
-                var portalEdge = Game.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
+                // pe = portal edge
+                var pe = Game.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
             }
 
             if (wall.portalTo == 1)
@@ -225,6 +229,18 @@
             else if (wall.portalTo == 0)
                 wall_colour = "#00ff00";
 
+            var isteps = (we.x2 - we.x1) + 1;
+
+            var ya_interp = new Interpolator(we.y1a, we.y2a, isteps);
+            var yb_interp = new Interpolator(we.y1b, we.y2b, isteps);
+            var next_ya_interp = new Interpolator(pe.y1a, pe.y2a, isteps);
+            var next_yb_interp = new Interpolator(pe.y1b, pe.y2b, isteps);
+
+            for (var x=we.x1; x<=we.x2; x++)
+            {
+
+
+            }
 
 
             line(we.x1, we.y1a, we.x1, we.y1b, wall_colour);
@@ -301,8 +317,7 @@
 
         for (var s=0; s<sector.walls.length; s++)
         {
-            if (sector.walls[s].portalTo > -1)
-                RenderSector2(sector.walls[s].portalTo);
+            if (sector.walls[s].portalTo > -1) RenderSector2(sector.walls[s].portalTo);
         }
 
         RenderSector2(player.sector);
