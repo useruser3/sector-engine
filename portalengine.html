@@ -48,7 +48,7 @@
         this.y = 0;
         this.z = 0;
         this.v = 0;
-        this.height = 20;
+        this.height = 75;
         this.sector = 0;
     }
 
@@ -67,10 +67,10 @@
 
             player.x = Game.map.player.start_x;
             player.y = Game.map.player.start_y;
+            player.z = Game.map.sectors[Game.map.player.start_sector].floor_height + player.height;
             player.v = Game.map.player.start_ang;
             player.height = 25;
             player.sector = Game.map.player.start_sector;
-            player.z = Game.map.player.start_z;
 
             window.addEventListener('keyup', function(event) {Key.onKeyup(event);}, false);
             window.addEventListener('keydown', function(event) {Key.onKeydown(event);}, false);
@@ -205,21 +205,36 @@
                 }
             }
 
-            var we = Game.scene.getEdge(player, r1, r2, sector.floor_height, sector.ceiling_height);
+            var rel_floor_height = sector.floor_height - player.z;
+            var rel_ceil_height = sector.ceiling_height - player.z;
+
+            var we = Game.scene.getEdge(player, r1, r2, rel_floor_height, rel_ceil_height);
 
             if (wall.portalTo != -1)
             {
                 var nextSector = Game.map.sectors[wall.portalTo];
-                var portalEdge = Game.scene.projectPortalSector(we, r1, r2, nextSector.floor_height, nextSector.ceiling_height);
+
+                var next_rel_floor_height = nextSector.floor_height - player.z;
+                var next_rel_ceil_height = nextSector.ceiling_height - player.z;
+
+                var portalEdge = Game.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
             }
 
-            //vertical edge sides of wall
+            if (wall.portalTo == 1)
+                wall_colour = "#0000ff";
+            else if (wall.portalTo == 0)
+                wall_colour = "#00ff00";
+
+
+
             line(we.x1, we.y1a, we.x1, we.y1b, wall_colour);
             line(we.x2, we.y2a, we.x2, we.y2b, wall_colour);
 
             //horz
             line(we.x1, we.y1a, we.x2, we.y2a, wall_colour);
             line(we.x1, we.y1b, we.x2, we.y2b, wall_colour);
+
+            //vertical edge sides of wall
 
 
             if (1 == 0) {
@@ -429,6 +444,16 @@
             if (player.v > 359) player.v -= 360;
         }
 
+        if (Key.isDown(Key.MINUS))
+        {
+            player.z -=50;
+        }
+
+        if (Key.isDown(Key.PLUS))
+        {
+            player.z +=50;
+        }
+
         if (Key.isDown(Key.LEFT))
         {
             player.v -= 6;
@@ -462,6 +487,8 @@
         UP: 38,
         RIGHT: 39,
         DOWN: 40,
+        MINUS: 189,
+        PLUS: 187,
 
         isDown: function(keyCode) {
             return this._pressed[keyCode];

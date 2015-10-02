@@ -9,7 +9,7 @@ function PerspectiveProjector(screen_width, screen_height, fov)
     this.w2 = screen_width / 2;
     this.h2 = screen_height / 2;
     this.aspect = screen_width / screen_height;
-    this.hfov = fov * (Math.PI /180)
+    this.hfov = fov * (Math.PI /180);
     this.vfov = (2 * Math.atan(Math.tan((this.hfov * Math.PI/180) / 2) * this.aspect));
 
 
