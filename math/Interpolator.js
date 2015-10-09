@@ -4,11 +4,14 @@
 
 // Helper method for linear interpolation
 
-function Interpolator(from, to, steps)
+function Interpolator(from, to, steps, start)
 {
+    var st = start || 0;
     var s = 0, ss=steps;
     var inc = (to - from) / (steps-1);
-    var val = from - inc;
+
+    var val = from + (inc * st);
+    val -= inc;
 
     this.next = function()
     {

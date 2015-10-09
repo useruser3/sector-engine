@@ -6,8 +6,8 @@
     <script src="./util/util.js"></script>
     <script src="./math/Projection3d.js"></script>
     <script src="./math/Interpolator.js"></script>
+    <script src="./math/Clip2d.js"></script>
     <script src="./util/MapLoader.js"></script>
-
 
 </head>
 <body>
@@ -63,7 +63,7 @@
         Game.map = new Map();
         Game.fps = 30;
 
-        Game.map.load('./maps/alantest2.map', 0.025, function(){
+        Game.map.load('./maps/alantest3.map', 0.025, function(){
 
             player.x = Game.map.player.start_x;
             player.y = Game.map.player.start_y;
@@ -74,12 +74,17 @@
 
             window.addEventListener('keyup', function(event) {Key.onKeyup(event);}, false);
             window.addEventListener('keydown', function(event) {Key.onKeydown(event);}, false);
+            //window.addEventListener('keypress', function(event) {alert('wtf')}, false);
 
             Game.frameTimer = window.setInterval(Render, 1000 / Game.fps);
 
             Render();
 
         });
+
+        Math.clamp = function(v, min, max) {
+            return Math.min(Math.max(v, min), max);
+        };
 
     }
 
@@ -155,7 +160,7 @@
         return ((x0)*(y1) - (x1)*(y0));
     }
 
-    function RenderSector2(sectorId)
+    function RenderSector(x_clip_start, x_clip_end, sectorId)
     {
         var sector = Game.map.sectors[sectorId];
 
@@ -205,54 +210,104 @@
                 }
             }
 
-            var rel_floor_height = sector.floor_height - player.z;
-            var rel_ceil_height = sector.ceiling_height - player.z;
+            var rel_floor_height = sector.floor_height + player.z;
+            var rel_ceil_height = sector.ceiling_height + player.z;
 
             // we = wall edge
             var we = Game.scene.getEdge(player, r1, r2, rel_floor_height, rel_ceil_height);
 
             if (we.x1 >= we.x2) continue; // wall is not facing us, don't draw
+            if (we.x2 < x_clip_start || we.x1 > x_clip_end) continue;
+
+            var next_rel_floor_height = 0;
+            var next_rel_ceil_height = 0;
 
             if (wall.portalTo != -1)
             {
                 var nextSector = Game.map.sectors[wall.portalTo];
 
-                var next_rel_floor_height = nextSector.floor_height - player.z;
-                var next_rel_ceil_height = nextSector.ceiling_height - player.z;
-
-                // pe = portal edge
-                var pe = Game.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
+                next_rel_floor_height = nextSector.floor_height + player.z;
+                next_rel_ceil_height = nextSector.ceiling_height + player.z;
             }
 
-            if (wall.portalTo == 1)
-                wall_colour = "#0000ff";
-            else if (wall.portalTo == 0)
-                wall_colour = "#00ff00";
+            var pe = Game.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
+
+            //if (wall.portalTo != -1)
+            //    line(we.x1, pe.y1a, we.x2, pe.y2a, '#000000');
 
             var isteps = (we.x2 - we.x1) + 1;
 
-            var ya_interp = new Interpolator(we.y1a, we.y2a, isteps);
-            var yb_interp = new Interpolator(we.y1b, we.y2b, isteps);
-            var next_ya_interp = new Interpolator(pe.y1a, pe.y2a, isteps);
-            var next_yb_interp = new Interpolator(pe.y1b, pe.y2b, isteps);
+            var ix1 = Math.max(we.x1, x_clip_start);
+            var ix2 = Math.min(we.x2, x_clip_end);
 
-            for (var x=we.x1; x<=we.x2; x++)
+            var start_at = Math.abs(we.x1 - ix1);
+
+            var ya_interp = new Interpolator(we.y1a, we.y2a, isteps, start_at);
+            var yb_interp = new Interpolator(we.y1b, we.y2b, isteps, start_at);
+            var next_ya_interp = new Interpolator(pe.y1a, pe.y2a, isteps, start_at);
+            var next_yb_interp = new Interpolator(pe.y1b, pe.y2b, isteps, start_at);
+
+            for (var x=ix1; x<=ix2; x++)
             {
+                var ya = ya_interp.next();
+                var yb = yb_interp.next();
+
+                var cya = clamp(ya, vstart_top[x], vstart_bottom[x]);
+                var cyb = clamp(yb, vstart_top[x], vstart_bottom[x]);
 
 
+                if (wall.portalTo >= 0 ) {
+
+                    var nya = next_ya_interp.next();
+                    var nyb = next_yb_interp.next();
+                    var cnya = clamp(nya, vstart_top[x], vstart_bottom[x]);
+                    var cnyb = clamp(nyb, vstart_top[x], vstart_bottom[x]);
+
+                    line(x, cya, x, cnya-1, '#999999ff');
+
+                    vstart_top[x] = clamp(Math.max(cya,cnya), vstart_top[x], SCREEN_HEIGHT-1);
+
+                    line(x, cnyb+1, x, cyb, '#999999ff');
+
+                    vstart_bottom[x] = clamp(Math.min(cyb, cnyb), 0, vstart_bottom[x]);
+
+
+                } else {
+
+                    line (x, ya, x, yb, '#999999ff');
+
+
+                }
+            }
+
+            if (ix2 >= ix1 && wall.portalTo != -1)
+            {
+                RenderSector(ix1, ix2, wall.portalTo);
             }
 
 
-            line(we.x1, we.y1a, we.x1, we.y1b, wall_colour);
-            line(we.x2, we.y2a, we.x2, we.y2b, wall_colour);
+
+
+
+            /**
+                 x1y1a ---- x2y2a   1 A       B
+                  |           |
+                  |           |
+                 x1y1b ---- x2y2b   2
+            **/
+
+
+            //line(we.x1, we.y1a, we.x1, we.y1b, wall_colour);
+            //line(we.x2, we.y2a, we.x2, we.y2b, wall_colour);
 
             //horz
-            line(we.x1, we.y1a, we.x2, we.y2a, wall_colour);
-            line(we.x1, we.y1b, we.x2, we.y2b, wall_colour);
+            //line(we.x1, we.y1a, we.x2, we.y2a, wall_colour);
+            //line(we.x1, we.y1b, we.x2, we.y2b, wall_colour);
 
             //vertical edge sides of wall
 
 
+            /**
             if (1 == 0) {
                 var x1 = (-r1.x / r1.z) * focal_length;
                 var x2 = (-r2.x / r2.z) * focal_length;
@@ -298,38 +353,128 @@
                     ye += ybotinc;
                 }
             }
-
+            **/
 
 
         }
 
     }
 
+    var vstart_top = [], vstart_bottom = [];
 
+    function prepareFrame ()
+    {
+        for (var t=0; t<SCREEN_WIDTH;t++) {
+            vstart_bottom[t] = SCREEN_HEIGHT-1;
+            vstart_top[t] = 0;
+        }
+
+        buffer_context.clearRect(0,0,buffer.width, buffer.height);
+
+    }
 
     function Render()
     {
+        prepareFrame();
         move();
-
-        buffer_context.clearRect(0,0,buffer.width, buffer.height);
 
         var sector = Game.map.sectors[player.sector];
 
         for (var s=0; s<sector.walls.length; s++)
         {
-            if (sector.walls[s].portalTo > -1) RenderSector2(sector.walls[s].portalTo);
+           // if (sector.walls[s].portalTo > -1) RenderSector2(sector.walls[s].portalTo);
         }
 
-        RenderSector2(player.sector);
+        RenderSector(0, SCREEN_WIDTH-1, player.sector);
 
         status();
-
     }
 
+    var ldraw_buffer = [];
+
+
+    function lineb(x1, y1, x2, y2, col)
+    {
+        if (!col) col = '#0000ff';
+        var out_bounds = false;
+        if (x1 < 0 || x2 < 0 || x1 >= SCREEN_WIDTH || x2 >= SCREEN_WIDTH) out_bounds = true;
+        if (y1 < 0 || y2 < 0 || y1 >= SCREEN_HEIGHT || y2 >= SCREEN_HEIGHT) out_bounds = true;
+
+        if (out_bounds)
+        {
+            var lc = Clip2d(x1, y1, x2, y2, 0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1);
+            if (!lc.visible) return;
+
+            x1 = lc.x1;
+            y1 = lc.y1;
+            x2 = lc.x2;
+            y2 = lc.y2;
+
+        }
+
+        ldraw_buffer.push({x1:x1, y1:y1, x2:x2, y2:y2, col:col});
+/*
+        buffer_context.beginPath();
+        buffer_context.moveTo(x1, y1);
+        buffer_context.lineTo(x2, y2);
+        buffer_context.lineWidth = 1;
+        buffer_context.strokeStyle = col;
+        buffer_context.stroke();*/
+    }
+
+    function line_flush()
+    {
+
+
+        if (ldraw_buffer.length  <1 ) return;
+
+        for (var t=0; t<ldraw_buffer.length;t++)
+        {
+            setTimeout(function(){
+                console.log(Date.now());
+                /*
+                var l = ldraw_buffer[0];
+                var x1 = l.x1, y1 = l.y1;
+                var x2 = l.x2, y2 = l.y2;
+                var col = l.col;
+
+                ldraw_buffer.splice(0,1);
+
+                buffer_context.beginPath();
+                buffer_context.moveTo(x1, y1);
+                buffer_context.lineTo(x2, y2);
+                buffer_context.lineWidth = 1;
+                buffer_context.strokeStyle = col;
+                buffer_context.stroke();*/
+
+            }, 10)
+
+        }
+
+        ldraw_buffer = [];
+
+    };
 
     function line(x1, y1, x2, y2, col)
     {
         if (!col) col = '#0000ff';
+        var out_bounds = false;
+        if (x1 < 0 || x2 < 0 || x1 >= SCREEN_WIDTH || x2 >= SCREEN_WIDTH) out_bounds = true;
+        if (y1 < 0 || y2 < 0 || y1 >= SCREEN_HEIGHT || y2 >= SCREEN_HEIGHT) out_bounds = true;
+
+        if (out_bounds)
+        {
+            var lc = Clip2d(x1, y1, x2, y2, 0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1);
+            if (!lc.visible) return;
+
+            x1 = lc.x1;
+            y1 = lc.y1;
+            x2 = lc.x2;
+            y2 = lc.y2;
+
+        }
+
+
         buffer_context.beginPath();
         buffer_context.moveTo(x1, y1);
         buffer_context.lineTo(x2, y2);
