@@ -31,7 +31,9 @@
     document.getElementById('screen').height = SCREEN_HEIGHT;
 
     var buffer = document.getElementById('screen');
+    buffer.style.opacity = 1.0;
     var buffer_context = buffer.getContext('2d');
+    //buffer_context.globalCompositeOperation = 'xor';
     var buffer_data = buffer_context.getImageData(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     var fov = SCREEN_FOV;
@@ -63,7 +65,7 @@
         Game.map = new Map();
         Game.fps = 30;
 
-        Game.map.load('./maps/alantest3.map', 0.025, function(){
+        Game.map.load('./maps/alantest4.map', 0.025, function(){
 
             player.x = Game.map.player.start_x;
             player.y = Game.map.player.start_y;
@@ -228,6 +230,7 @@
 
                 next_rel_floor_height = nextSector.floor_height + player.z;
                 next_rel_ceil_height = nextSector.ceiling_height + player.z;
+
             }
 
             var pe = Game.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
@@ -255,6 +258,10 @@
                 var cya = clamp(ya, vstart_top[x], vstart_bottom[x]);
                 var cyb = clamp(yb, vstart_top[x], vstart_bottom[x]);
 
+                //line(x, vstart_top[x], x, cya-1, '#00f');
+
+                //line(x, cyb+1, x, vstart_bottom[x], '#f00');
+
 
                 if (wall.portalTo >= 0 ) {
 
@@ -263,18 +270,19 @@
                     var cnya = clamp(nya, vstart_top[x], vstart_bottom[x]);
                     var cnyb = clamp(nyb, vstart_top[x], vstart_bottom[x]);
 
-                    line(x, cya, x, cnya-1, '#999999ff');
+                    if (nextSector.floor_height < sector.floor_height)
+                        line(x, cya, x, cnya-1, '#333');
 
                     vstart_top[x] = clamp(Math.max(cya,cnya), vstart_top[x], SCREEN_HEIGHT-1);
 
-                    line(x, cnyb+1, x, cyb, '#999999ff');
+                    line(x, cnyb+1, x, cyb, '#333');
 
                     vstart_bottom[x] = clamp(Math.min(cyb, cnyb), 0, vstart_bottom[x]);
 
 
                 } else {
 
-                    line (x, ya, x, yb, '#999999ff');
+                    line (x, ya, x, yb, '#333');
 
 
                 }
