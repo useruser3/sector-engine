@@ -83,14 +83,16 @@ function Map()
         this.player.start_x *= sf;
         this.player.start_y *= sf;
         this.player.start_z *= sf;
+
         this.player.start_ang = (this.player.start_ang / ANGLE_SCALE) * 360;
 
-        var bigY =0;
+        var extent_y =0;
         for (var t=0; t< this.vertices.length; t++)
-            if (this.vertices[t].y > bigY) bigY = this.vertices[t].y;
+            if (this.vertices[t].y > extent_y) extent_y = this.vertices[t].y;
 
         for (t=0; t<this.vertices.length; t++)
         {
+            //this.vertices[t].y = extent_y - (this.vertices[t].y);
             //this.vertices[t].y = -this.vertices[t].y;
             //this.vertices[t].y += bigY;
 
@@ -105,8 +107,10 @@ function Map()
             this.sectors[t].extract_walls(this.vertices);
 
             this.sectors[t].height *= sf * 0.1;
-            this.sectors[t].floor_height *= sf * 3;
-            this.sectors[t].ceiling_height *= sf * 3;
+            this.sectors[t].floor_height *= sf * -3;
+            this.sectors[t].ceiling_height *= sf * -3;
+
+
         }
 
 

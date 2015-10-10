@@ -65,7 +65,7 @@
         Game.map = new Map();
         Game.fps = 30;
 
-        Game.map.load('./maps/alantest4.map', 0.025, function(){
+        Game.map.load('./maps/alantest3.map', 0.025, function(){
 
             player.x = Game.map.player.start_x;
             player.y = Game.map.player.start_y;
@@ -212,8 +212,10 @@
                 }
             }
 
-            var rel_floor_height = sector.floor_height + player.z;
-            var rel_ceil_height = sector.ceiling_height + player.z;
+
+
+            var rel_floor_height = sector.floor_height - player.z;
+            var rel_ceil_height = sector.ceiling_height - player.z;
 
             // we = wall edge
             var we = Game.scene.getEdge(player, r1, r2, rel_floor_height, rel_ceil_height);
@@ -228,8 +230,8 @@
             {
                 var nextSector = Game.map.sectors[wall.portalTo];
 
-                next_rel_floor_height = nextSector.floor_height + player.z;
-                next_rel_ceil_height = nextSector.ceiling_height + player.z;
+                next_rel_floor_height = nextSector.floor_height - player.z;
+                next_rel_ceil_height = nextSector.ceiling_height - player.z;
 
             }
 
@@ -250,6 +252,26 @@
             var next_ya_interp = new Interpolator(pe.y1a, pe.y2a, isteps, start_at);
             var next_yb_interp = new Interpolator(pe.y1b, pe.y2b, isteps, start_at);
 
+            if (wall.portalTo >= 0){
+
+                console.log("Thisfloor=", sector.floor_height, ' Nextfloor=',nextSector.floor_height);
+
+            if (nextSector.floor_height < sector.floor_height) {
+
+                line(we.x1, we.y1b, we.x2, we.y2b, '#000');
+
+            }
+
+                line (we.x1, we.y1a, we.x2, we.y2a, '#0f0');
+
+                if (nextSector.ceiling_height < sector.ceiling_height)
+                {
+                    line (we.x1, pe.y1a, we.x2, pe.y2a, '#f0f');
+
+                }
+            }
+
+
             for (var x=ix1; x<=ix2; x++)
             {
                 var ya = ya_interp.next();
@@ -259,38 +281,47 @@
                 var cyb = clamp(yb, vstart_top[x], vstart_bottom[x]);
 
                 //line(x, vstart_top[x], x, cya-1, '#00f');
+                line(x, cyb+1, x, vstart_bottom[x], '#0ff');
 
-                //line(x, cyb+1, x, vstart_bottom[x], '#f00');
+                if (sectorId == 0)
+                    wall_colour = '#f80';
+                else  if (sectorId==1 )
+                    wall_colour = '#09f';
 
-
-                if (wall.portalTo >= 0 ) {
-
+                if (wall.portalTo >= 0 )
+                {
                     var nya = next_ya_interp.next();
                     var nyb = next_yb_interp.next();
                     var cnya = clamp(nya, vstart_top[x], vstart_bottom[x]);
                     var cnyb = clamp(nyb, vstart_top[x], vstart_bottom[x]);
 
-                    if (nextSector.floor_height < sector.floor_height)
-                        line(x, cya, x, cnya-1, '#333');
+                    // then there is no bottom to the wall
+                   // if (nextSector.floor_height >= sector.floor_height)
+                     //   line(x, cya, x, cnya-1, '#f00');
+
 
                     vstart_top[x] = clamp(Math.max(cya,cnya), vstart_top[x], SCREEN_HEIGHT-1);
-
-                    line(x, cnyb+1, x, cyb, '#333');
-
                     vstart_bottom[x] = clamp(Math.min(cyb, cnyb), 0, vstart_bottom[x]);
+
+                   // line(x, cnyb+1, x, cyb, '#f00');
+
 
 
                 } else {
 
-                    line (x, ya, x, yb, '#333');
+                   line (x, clamp(ya, vstart_top[x], vstart_bottom[x]), x, clamp(yb, vstart_top[x], vstart_bottom[x]), wall_colour);
 
+                    vstart_bottom[x] = clamp(Math.min(yb, cyb), 0, vstart_bottom[x]);
 
                 }
+
+
+
             }
 
             if (ix2 >= ix1 && wall.portalTo != -1)
             {
-                RenderSector(ix1, ix2, wall.portalTo);
+               RenderSector(ix1, ix2, wall.portalTo);
             }
 
 
