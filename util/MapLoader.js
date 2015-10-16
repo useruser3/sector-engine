@@ -21,6 +21,15 @@ function MapSector(vert_index, vert_count, floorz, ceilz)
 
     };
 
+    this._calc_wall_width = function(v1, v2)
+    {
+        var xdiff = (v1.x - v2.x);
+        var ydiff = (v1.y - v2.y);
+
+        return Math.sqrt((xdiff * xdiff) + (ydiff*ydiff));
+
+    };
+
     this.extract_walls = function(vertices)
     {
         this.walls = [];
@@ -30,14 +39,16 @@ function MapSector(vert_index, vert_count, floorz, ceilz)
             this.walls.push({
                 p1: t,
                 p2: t+1,
-                portalTo: vertices[t].next_sector
+                portalTo: vertices[t].next_sector,
+                width: (this._calc_wall_width(vertices[t], vertices[t+1]))
             })
         }
 
         this.walls.push({
             p1: t,
             p2: this.vert_index,
-            portalTo: vertices[t].next_sector
+            portalTo: vertices[t].next_sector,
+            width: (this._calc_wall_width(vertices[this.vert_index], vertices[t]))
         })
 
     };
@@ -106,9 +117,9 @@ function Map()
             this.sectors[t].calc_neighbours(this.vertices);
             this.sectors[t].extract_walls(this.vertices);
 
-            this.sectors[t].height *= sf * 0.1;
-            this.sectors[t].floor_height *= sf * -3;
-            this.sectors[t].ceiling_height *= sf * -3;
+            //this.sectors[t].height *= sf * 0.1;
+            this.sectors[t].floor_height *= sf  *-0.1;
+            this.sectors[t].ceiling_height *= sf *-0.1 ;
 
 
         }
