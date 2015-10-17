@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2990aa89-23de-48d2-a700-a35a2d953ffa" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/util/MapLoader.js" afterPath="$PROJECT_DIR$/util/MapLoader.js" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/math/Projection3d.js" afterPath="$PROJECT_DIR$/math/Projection3d.js" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/portalengine.html" afterPath="$PROJECT_DIR$/portalengine.html" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
@@ -31,25 +30,26 @@
     <splitter split-orientation="horizontal" split-proportion="0.4454174">
       <split-first>
         <leaf>
-          <file leaf-file-name="portalengine.html" pinned="false" current-in-tab="true">
+          <file leaf-file-name="portalengine.html" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/portalengine.html">
               <provider selected="true" editor-type-id="text-editor">
-                <state vertical-scroll-proportion="0.2524377" vertical-offset="10972" max-vertical-offset="11895">
-                  <caret line="747" column="0" selection-start-line="747" selection-start-column="0" selection-end-line="747" selection-end-column="0" />
+                <state vertical-scroll-proportion="-6.2083335" vertical-offset="4666" max-vertical-offset="11670">
+                  <caret line="386" column="0" selection-start-line="386" selection-start-column="0" selection-end-line="386" selection-end-column="0" />
                   <folding>
                     <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
                     <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
                     <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+                    <element signature="e#8933#11737#0" expanded="false" />
                   </folding>
                 </state>
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="Player.js" pinned="false" current-in-tab="false">
+          <file leaf-file-name="Player.js" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/gameobjs/Player.js">
               <provider selected="true" editor-type-id="text-editor">
-                <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="270">
-                  <caret line="11" column="19" selection-start-line="11" selection-start-column="19" selection-end-line="11" selection-end-column="19" />
+                <state vertical-scroll-proportion="0.28481013" vertical-offset="0" max-vertical-offset="632">
+                  <caret line="14" column="1" selection-start-line="14" selection-start-column="1" selection-end-line="14" selection-end-column="1" />
                   <folding>
                     <element signature="n#!!doc;n#Player#0" expanded="false" />
                   </folding>
@@ -60,8 +60,28 @@
           <file leaf-file-name="Projection3d.js" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/math/Projection3d.js">
               <provider selected="true" editor-type-id="text-editor">
-                <state vertical-scroll-proportion="0.0" vertical-offset="45" max-vertical-offset="1395">
-                  <caret line="26" column="35" selection-start-line="26" selection-start-column="34" selection-end-line="26" selection-end-column="35" />
+                <state vertical-scroll-proportion="0.0" vertical-offset="315" max-vertical-offset="1635">
+                  <caret line="65" column="0" selection-start-line="65" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
+                  <folding />
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="MapLoader.js" pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/util/MapLoader.js">
+              <provider selected="true" editor-type-id="text-editor">
+                <state vertical-scroll-proportion="0.0" vertical-offset="1333" max-vertical-offset="3210">
+                  <caret line="121" column="54" selection-start-line="121" selection-start-column="54" selection-end-line="121" selection-end-column="54" />
+                  <folding />
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="portrend.c" pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/tests/portrend.c">
+              <provider selected="true" editor-type-id="text-editor">
+                <state vertical-scroll-proportion="54.962963" vertical-offset="27794" max-vertical-offset="31050">
+                  <caret line="1754" column="61" selection-start-line="1754" selection-start-column="61" selection-end-line="1754" selection-end-column="61" />
                   <folding />
                 </state>
               </provider>
@@ -71,12 +91,27 @@
       </split-first>
       <split-second>
         <leaf>
-          <file leaf-file-name="portrend.c" pinned="false" current-in-tab="true">
-            <entry file="file://$PROJECT_DIR$/tests/portrend.c">
+          <file leaf-file-name="sectorengine.htm" pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/tests/sectorengine.htm">
               <provider selected="true" editor-type-id="text-editor">
-                <state vertical-scroll-proportion="0.49841604" vertical-offset="24833" max-vertical-offset="31050">
-                  <caret line="1687" column="31" selection-start-line="1687" selection-start-column="31" selection-end-line="1687" selection-end-column="31" />
+                <state vertical-scroll-proportion="-4.9411764" vertical-offset="26328" max-vertical-offset="34725">
+                  <caret line="1772" column="82" selection-start-line="1772" selection-start-column="82" selection-end-line="1772" selection-end-column="82" />
                   <folding />
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="portalengine.html" pinned="false" current-in-tab="true">
+            <entry file="file://$PROJECT_DIR$/portalengine.html">
+              <provider selected="true" editor-type-id="text-editor">
+                <state vertical-scroll-proportion="0.79159665" vertical-offset="4494" max-vertical-offset="12645">
+                  <caret line="331" column="24" selection-start-line="331" selection-start-column="24" selection-end-line="331" selection-end-column="24" />
+                  <folding>
+                    <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+                    <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+                    <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+                    <marker date="1445092605000" expanded="true" signature="5783:24251" placeholder="{...}" />
+                  </folding>
                 </state>
               </provider>
             </entry>
@@ -111,6 +146,7 @@
         <option value="$PROJECT_DIR$/gameobjs/player.js" />
         <option value="$PROJECT_DIR$/util/MapLoader.js" />
         <option value="$PROJECT_DIR$/gameobjs/Player.js" />
+        <option value="$PROJECT_DIR$/tests/sectorengine.htm" />
         <option value="$PROJECT_DIR$/math/Projection3d.js" />
         <option value="$PROJECT_DIR$/portalengine.html" />
       </list>
@@ -123,7 +159,7 @@
     <option name="x" value="-1920" />
     <option name="y" value="23" />
     <option name="width" value="1920" />
-    <option name="height" value="1057" />
+    <option name="height" value="1053" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true">
     <OptionsSetting value="true" id="Add" />
@@ -195,6 +231,34 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="tests" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="sector-engine" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="sector-engine" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="math" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="sector-engine" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="sector-engine" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="maps" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -300,12 +364,26 @@
       <option name="number" value="Default" />
       <updated>1410007679609</updated>
     </task>
+    <task id="LOCAL-00001" summary="fixed mess of last commit. Also fixed player yaw (should've been pitch!!) to allow fake looking up/down">
+      <created>1445043683064</created>
+      <option name="number" value="00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1445043683064</updated>
+    </task>
+    <task id="LOCAL-00002" summary="fixed weird scaling problem with wall heights and vfov projection code. World units normalized. &#10;Implemented basic TEXTURE MAPPING !">
+      <created>1445075091100</created>
+      <option name="number" value="00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1445075091100</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-1920" y="23" width="1920" height="1057" extended-state="6" />
+    <frame x="-1920" y="23" width="1920" height="1053" extended-state="6" />
     <editor active="true" />
     <layout>
+      <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.3292683" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32919255" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -341,10 +419,14 @@
     <option name="myTodoPanelSettings">
       <TodoPanelSettings />
     </option>
+    <MESSAGE value="fixed mess of last commit. Also fixed player yaw (should've been pitch!!) to allow fake looking up/down" />
+    <MESSAGE value="fixed weird scaling problem with wall heights and vfov projection code. World units normalized. &#10;Implemented basic TEXTURE MAPPING !" />
+    <MESSAGE value="floor and ceilings texture mapped. begin splitting rendering of vertical (wall) and horizontal(floor) planes into two separate jobs" />
+    <option name="LAST_COMMIT_MESSAGE" value="floor and ceilings texture mapped. begin splitting rendering of vertical (wall) and horizontal(floor) planes into two separate jobs" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
-      <option name="time" value="2" />
+      <option name="time" value="4" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -357,6 +439,7 @@
             <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="e#8933#11737#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -411,6 +494,7 @@
             <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="e#8933#11737#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -465,6 +549,7 @@
             <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="e#8933#11737#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -493,6 +578,7 @@
             <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="e#8933#11737#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -505,6 +591,7 @@
             <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="e#8933#11737#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -517,6 +604,7 @@
             <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="e#8933#11737#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -711,56 +799,57 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/tests/sectorengine.htm">
+    <entry file="file://$PROJECT_DIR$/util/MapLoader.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.48862407" vertical-offset="21749" max-vertical-offset="34695">
-          <caret line="1480" column="13" selection-start-line="1480" selection-start-column="13" selection-end-line="1480" selection-end-column="13" />
+        <state vertical-scroll-proportion="0.0" vertical-offset="1333" max-vertical-offset="3210">
+          <caret line="121" column="54" selection-start-line="121" selection-start-column="54" selection-end-line="121" selection-end-column="54" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/util/MapLoader.js">
+    <entry file="file://$PROJECT_DIR$/math/Projection3d.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="2.504752" vertical-offset="478" max-vertical-offset="3210">
-          <caret line="190" column="47" selection-start-line="190" selection-start-column="47" selection-end-line="190" selection-end-column="47" />
+        <state vertical-scroll-proportion="0.0" vertical-offset="315" max-vertical-offset="1635">
+          <caret line="65" column="0" selection-start-line="65" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/sectorengine.htm">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="-4.9411764" vertical-offset="26328" max-vertical-offset="34725">
+          <caret line="1772" column="82" selection-start-line="1772" selection-start-column="82" selection-end-line="1772" selection-end-column="82" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/tests/portrend.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.49841604" vertical-offset="24833" max-vertical-offset="31050">
-          <caret line="1687" column="31" selection-start-line="1687" selection-start-column="31" selection-end-line="1687" selection-end-column="31" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/gameobjs/Player.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="270">
-          <caret line="11" column="19" selection-start-line="11" selection-start-column="19" selection-end-line="11" selection-end-column="19" />
-          <folding>
-            <element signature="n#!!doc;n#Player#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/math/Projection3d.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0" vertical-offset="45" max-vertical-offset="1395">
-          <caret line="26" column="35" selection-start-line="26" selection-start-column="34" selection-end-line="26" selection-end-column="35" />
+        <state vertical-scroll-proportion="54.962963" vertical-offset="27794" max-vertical-offset="31050">
+          <caret line="1754" column="61" selection-start-line="1754" selection-start-column="61" selection-end-line="1754" selection-end-column="61" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/portalengine.html">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.2524377" vertical-offset="10972" max-vertical-offset="11895">
-          <caret line="747" column="0" selection-start-line="747" selection-start-column="0" selection-end-line="747" selection-end-column="0" />
+        <state vertical-scroll-proportion="-6.2083335" vertical-offset="4666" max-vertical-offset="11670">
+          <caret line="386" column="0" selection-start-line="386" selection-start-column="0" selection-end-line="386" selection-end-column="0" />
           <folding>
             <element signature="n#style#0;n#canvas#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
             <element signature="n#style#0;n#button#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="e#8933#11737#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/gameobjs/Player.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.28481013" vertical-offset="0" max-vertical-offset="632">
+          <caret line="14" column="1" selection-start-line="14" selection-start-column="1" selection-end-line="14" selection-end-column="1" />
+          <folding>
+            <element signature="n#!!doc;n#Player#0" expanded="false" />
           </folding>
         </state>
       </provider>

@@ -46,6 +46,27 @@ function PerspectiveProjector(screen_width, screen_height, fov)
         }
     };
 
+    this.unProjectScreen = function(player, mapY, screenX, screenY)
+    {
+        var Z = mapY * this.height * this.vfov /
+                    ((this.h2 - screenY) - player.pitch * this.height * this.vfov);
+
+        var X = Z * (this.w2 - screenX) / (this.width * this.hfov);
+
+        var rv = player.v * Math.PI/180;
+
+        var s = Math.sin(rv);
+        var c = Math.cos(rv);
+
+        var rtx = Z * c + X * s;
+        var rtz = Z * s - X * c;
+
+        X = rtx + player.x;
+        Z = rtz + player.y;
+
+        return {x: X, z: Z};
+    };
+
     this.projectPortalSector = function(edge, r1, r2, nextCeil, nextFloor)
     {
         var radv = player.pitch * Math.PI / 180;

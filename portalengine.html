@@ -158,17 +158,41 @@
         return ((x0)*(y1) - (x1)*(y0));
     }
 
+    var floor_tex2 = [];
+    var floor_tex2_width = 16;
+
+    for (var fy=0; fy<floor_tex2_width; fy++)
+    {
+        floor_tex2[fy] = [];
+        for (var fx=0; fx<floor_tex2_width; fx++)
+        {
+            var color = {r:0,g:0,b:0};
+
+            if (fy < floor_tex2_width/2) {
+                if (fx < floor_tex2_width / 2)
+                    color = {r: 50, g: 50, b: 50};
+                else
+                    color = {r: 100, g: 100, b: 100};
+            } else {
+                if (fx >= floor_tex2_width / 2)
+                    color = {r: 50, g: 50, b: 50};
+                else
+                    color = {r: 100, g: 100, b: 100};
+            }
+
+            floor_tex2[fy][fx] = color;
+
+        }
+    }
+
     function RenderSector(x_clip_start, x_clip_end, sectorId)
     {
-
-
-
         var sector = Engine.map.sectors[sectorId];
-        //console.log("Rendering sector "+sector);
+
+        var sector_floors = [];
 
         for (var p=0; p<sector.walls.length; p++)
         {
-          //  console.log("Doing wall "+p);
             var wall = sector.walls[p];
 
             var wall_colour = '#0000ff';
@@ -182,8 +206,6 @@
 
             var r1 = Rotate2d(vx1, vy1, player.v);
             var r2 = Rotate2d(vx2, vy2, player.v);
-
-            var sheight = sector.height;
 
             // completely off player's fov, move to next...
             if (r1.z <=0 && r2.z <=0) continue;
@@ -239,15 +261,11 @@
 
             var pe = Engine.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
 
-            //if (wall.portalTo != -1)
-            //    line(we.x1, pe.y1a, we.x2, pe.y2a, '#000000');
 
             var isteps = (we.x2 - we.x1) + 1;
 
             var tu_start = 0;
             var tu_end = Math.floor(wall.width)-1;
-
-
 
             var ix1 = Math.max(we.x1, x_clip_start);
             var ix2 = Math.min(we.x2, x_clip_end);
@@ -260,50 +278,37 @@
             var next_yb_interp = new Interpolator(pe.y1b, pe.y2b, isteps, start_at);
             var tu_interp = new Interpolator(tu_start, tu_end, isteps, start_at);
 
-            if (wall.portalTo >= 0)
-            {
-                    //console.log("Thisfloor=", sector.floor_height, ' Nextfloor=',nextSector.floor_height);
-
-                if (nextSector.floor_height < sector.floor_height)  // next floor is lower, thus dont draw lower wall of this portal
-                {
-                  //  line(we.x1, we.y1b, we.x2, we.y2b, '#000');
-                }
-
-                if (nextSector.floor_height > sector.floor_height) // bottom part of wall
-                {
-                  //  line (we.x1, we.y1b, we.x2, pe.y1b, '#000');
-
-                }
-
-                //line (we.x1, we.y1a, we.x2, we.y2a, '#0f0');
-
-                if (nextSector.ceiling_height < sector.ceiling_height)
-                {
-                    //line (we.x1, pe.y1a, we.x2, pe.y2a, '#f0f');
-                    //line (we.x1, we.y1a, we.x2, pe.y2a, '#000')
-
-                }
-            }
 
 
-            for (var x=ix1; x<=ix2; x++)
+
+            for (var x=ix1; x<ix2; x++)
             {
                 var ya = ya_interp.next();
                 var yb = yb_interp.next();
 
-                var cya = clamp(ya, vstart_top[x], vstart_bottom[x]);
-                var cyb = clamp(yb, vstart_top[x], vstart_bottom[x]);
+                var cya = clamp(ya, clip_window[x].top, clip_window[x].bottom);
+                var cyb = clamp(yb, clip_window[x].top, clip_window[x].bottom);
 
-                line(x, vstart_top[x], x, cya-1, '#0ff');
-                line(x, cyb+1, x, vstart_bottom[x], '#ff0');
+                //var cya = clamp(ya, vstart_top[x], vstart_bottom[x]);
+                //var cyb = clamp(yb, vstart_top[x], vstart_bottom[x]);
+
+                line(x, clip_window[x].top, x, cya-1, '#0ff');   // ceiling
+
+                //line(x, cyb+1, x, clip_window[x].bottom, '#000'); // floor
+
+                sector_floors[x] = {y1: Math.round(cyb), y2: Math.floor(clip_window[x].bottom), hei: rel_floor_height};
 
 
+                // Portal wall
                 if (wall.portalTo >= 0 )
                 {
                     var nya = next_ya_interp.next();
                     var nyb = next_yb_interp.next();
-                    var cnya = clamp(nya, vstart_top[x], vstart_bottom[x]);
-                    var cnyb = clamp(nyb, vstart_top[x], vstart_bottom[x]);
+                    //var cnya = clamp(nya, vstart_top[x], vstart_bottom[x]);
+                    //var cnyb = clamp(nyb, vstart_top[x], vstart_bottom[x]);
+
+                    var cnya = clamp(nya, clip_window[x].top, clip_window[x].bottom);
+                    var cnyb = clamp(nyb, clip_window[x].top, clip_window[x].bottom);
 
                     // then there is no bottom to the wall
                     //if (nextSector.floor_height >= sector.floor_height)
@@ -319,17 +324,14 @@
                         line(x, cyb, x, cnyb, '#000');
                     }
 
-
-                    vstart_top[x] = clamp(Math.max(cya,cnya), vstart_top[x], SCREEN_HEIGHT-1);
-                    vstart_bottom[x] = clamp(Math.min(cyb, cnyb), 0, vstart_bottom[x]);
+                    clip_window[x].top    = clamp(Math.max(cya, cnya), clip_window[x].top, SCREEN_HEIGHT-1);
+                    clip_window[x].bottom = clamp(Math.min(cyb, cnyb), 0, clip_window[x].bottom);
 
                     //line(x, cnyb+1, x, cyb, '#f00');
 
-
-
                 } else {
 
-                    if (sectorId == 0 && p==3) {
+                    if ( sectorId == 0 && p==3) {
                         var tex_u = tu_interp.next();
                         var wall_size = Math.abs(sector.floor_height - sector.ceiling_height);
                         //if (x == ix1) console.log("wallsize=",wall_size, 'wallwidth=',wall.width);
@@ -338,31 +340,40 @@
 
                     } else {
 
-                        line (x, clamp(ya, vstart_top[x], vstart_bottom[x]), x, clamp(yb, vstart_top[x], vstart_bottom[x]), wall_colour);
+                        line (x, clamp(ya, clip_window[x].top, clip_window[x].bottom), x, clamp(yb, clip_window[x].top, clip_window[x].bottom), wall_colour);
                     }
 
-
-                   // line (x, ya, x, yb, wall_colour);
-                    //line (0,-29880.034393810263,639,98268.1779879646, '#ff0000');
-
-
-                    vstart_bottom[x] = clamp(Math.min(yb, cyb), 0, vstart_bottom[x]);
-
+                    //clip_window[x].top    = clamp()
+                    //clip_window[x].bottom = clamp(Math.min(yb, cyb), 0, clip_window[x].bottom);
                 }
 
             }
 
-            if (sectorId == 0 && p==3) {
-                var wall_size = Math.abs(sector.floor_height - sector.ceiling_height);
-                //console.log(wall.width+" x "+wall_size);
-            }
 
 
-                if (wall.portalTo != -1)
-            {
-                //console.log (ix1, ya, ix2, yb, wall_colour);
-            }
+            /*
+             for (var floor_y=cyb+1; floor_y<=clip_window[x].bottom; floor_y++)
+             {
+             var hei = rel_floor_height;
+             var floor = Engine.scene.unProjectScreen(player, hei, x, floor_y);
 
+             var tu = Math.floor(floor.x % floor_tex2_width);
+             var tv = Math.floor(floor.z % floor_tex2_width);
+
+             var c = floor_tex2[tu][tv];
+
+             var index = (x + floor_y * SCREEN_WIDTH) * 4;
+             buffer_data.data[index + 0] = c.r;
+             buffer_data.data[index + 1] = c.g;
+             buffer_data.data[index + 2] = c.b;
+             buffer_data.data[index + 3] = 255;
+
+             }*/
+
+
+            //
+            // This wall was a portal, recursively render the next sector seen through this portal
+            //
             if (ix2 >= ix1 && wall.portalTo != -1)
             {
                RenderSector(ix1, ix2, wall.portalTo);
@@ -370,8 +381,48 @@
 
 
 
-
         }
+
+        RenderPlanes(sector_floors);
+
+
+    }
+
+
+    function RenderPlanes(sector_floors)
+    {
+        buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        for (var fx = 0; fx<SCREEN_WIDTH; fx++)
+        {
+
+            if (sector_floors[fx])
+            {
+                //line(fx, wall_floor[fx].y1, fx, wall_floor[fx].y2, '#8f0' );
+                //console.log(wall_floor[fx].y1, wall_floor[fx].y2);
+
+                var hei = sector_floors[fx].hei;
+
+                for (var fy=sector_floors[fx].y1, fy2=sector_floors[fx].y2; fy<=fy2; fy++)
+                {
+                    var floor = Engine.scene.unProjectScreen(player, hei, fx, fy);
+
+                    var tu = Math.floor(floor.x % floor_tex2_width);
+                    var tv = Math.floor(floor.z % floor_tex2_width);
+
+                    var c = floor_tex2[tu][tv];
+
+                    var index = (fx + fy * SCREEN_WIDTH) * 4;
+                    buffer_data.data[index + 0] = c.r;
+                    buffer_data.data[index + 1] = c.g;
+                    buffer_data.data[index + 2] = c.b;
+                    buffer_data.data[index + 3] = 255;
+
+                }
+            }
+        }
+
+        buffer_context.putImageData(buffer_data, 0, 0);
 
     }
 
@@ -390,28 +441,31 @@
     }
 
     var vstart_top = [], vstart_bottom = [];
+    var clip_window = [];
 
     function prepareFrame ()
     {
         for (var t=0; t<SCREEN_WIDTH;t++) {
-            vstart_bottom[t] = SCREEN_HEIGHT-1;
-            vstart_top[t] = 0;
+            //vstart_bottom[t] = SCREEN_HEIGHT-1;
+            //vstart_top[t] = 0;
+            clip_window[t] = {top: 0, bottom: SCREEN_HEIGHT-1};
         }
 
         buffer_context.clearRect(0,0,buffer.width, buffer.height);
-
     }
 
     function Render()
     {
         prepareFrame();
         handle_input();
+        //buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
 
         move_player(player.vx, player.vy);
 
         player.z = Engine.map.sectors[player.sector].floor_height + player.height;
 
         RenderSector(0, SCREEN_WIDTH-1, player.sector);
+       // buffer_context.putImageData(buffer_data, 0, 0);
 
         status();
     }
