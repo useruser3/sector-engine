@@ -110,16 +110,23 @@ function Map()
             this.vertices[t].x *= sf;
             this.vertices[t].y *= sf;
         }
-        console.log(this.vertices);
+
 
         for (t=0; t<this.sectors.length; t++)
         {
             this.sectors[t].calc_neighbours(this.vertices);
             this.sectors[t].extract_walls(this.vertices);
 
-            //this.sectors[t].height *= sf * 0.1;
-            this.sectors[t].floor_height *= sf  *-0.1;
-            this.sectors[t].ceiling_height *= sf *-0.1 ;
+            this.sectors[t].height *= sf * 0.1;
+            this.sectors[t].floor_height *= sf  *-3;
+            this.sectors[t].ceiling_height *= sf *-3 ;
+
+          //  console.log("***** SECTOR *****");
+            for (var w=0; w<this.sectors[t].walls.length; w++)
+            {
+            //    console.log("Wall: ", this.vertices[this.sectors[t].walls[w].p1],this.vertices[this.sectors[t].walls[w].p2] );
+            }
+          //  console.log(this.sectors[t].floor_height, this.sectors[t].ceiling_height);
 
 
         }

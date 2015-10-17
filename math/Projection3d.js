@@ -12,11 +12,11 @@ function PerspectiveProjector(screen_width, screen_height, fov)
     this.hfov = fov * (Math.PI /180);
     this.vfov = (2 * Math.atan(Math.tan((this.hfov * Math.PI/180) / 2) * this.aspect));
 
-    this.vfov = 2 * Math.atan(Math.tan(this.hfov/2) * (screen_width/screen_height));
+    //this.vfov = 2 * Math.atan(Math.tan(this.hfov/2) * (screen_width/screen_height));
 
     this.getEdge = function(player, r1, r2, yceil, yfloor)
     {
-        var radv = 0;//player.v * Math.PI / 180;
+        var radv = player.pitch * Math.PI / 180;
 
         //var dist = this.w2 / Math.tan((fov * (Math.PI /180))/2);
         //this.vfov = 2 * Math.atan(this.h2 / dist);
@@ -53,7 +53,7 @@ function PerspectiveProjector(screen_width, screen_height, fov)
 
     this.projectPortalSector = function(edge, r1, r2, nextCeil, nextFloor)
     {
-        var radv = player.v * Math.PI / 180;
+        var radv = player.pitch * Math.PI / 180;
 
         var ny1b = this.h2 + Math.floor( -Yaw(nextCeil, r1.z, radv) * edge.yscale1);
         var ny2b = this.h2 + Math.floor( -Yaw(nextCeil, r2.z, radv) * edge.yscale2);

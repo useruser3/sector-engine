@@ -9,6 +9,7 @@
     <script src="./math/Clip2d.js"></script>
     <script src="./util/MapLoader.js"></script>
     <script src="./util/Textures.js"></script>
+    <script src="./gameobjs/Player.js"></script>
 
 </head>
 <body>
@@ -45,45 +46,35 @@
 
     var focal_length = projection_centre / Math.tan(rad(fov/2));
 
-    function PLAYER()
-    {
-        this.x = 0;
-        this.y = 0;
-        this.z = 0;
-        this.v = 0;
-        this.height = 75;
-        this.sector = 0;
-    }
-
-    var player  = new PLAYER();
-
-    var Game = {};
+    var Engine = {};
+    var player;
 
     function Initialise()
     {
-        Game.scene = new PerspectiveProjector(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_FOV);
+        Engine.scene = new PerspectiveProjector(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_FOV);
 
-        Game.map = new Map();
-        Game.fps = 30;
+        Engine.map = new Map();
+        Engine.fps = 30;
 
-        Game.textures = new TextureManager();
-        Game.textures.add(0, './gfx/brick.png');
+        Engine.textures = new TextureManager();
+        Engine.textures.add(0, './gfx/brick.png');
 
-        Game.map.load('./maps/alantest4.map', 0.01, function(){
+        Engine.map.load('./maps/alantest5.map', 0.025, function(){
 
-            player.height = 25;
-            player.x = Game.map.player.start_x;
-            player.y = Game.map.player.start_y;
-            player.z = Game.map.sectors[Game.map.player.start_sector].floor_height + player.height;
-            player.v = Game.map.player.start_ang;
+            player = new Player();
 
-            player.sector = Game.map.player.start_sector;
+            player.x = Engine.map.player.start_x;
+            player.y = Engine.map.player.start_y;
+            player.z = Engine.map.sectors[Engine.map.player.start_sector].floor_height + player.height;
+            player.v = Engine.map.player.start_ang;
+
+            player.sector = Engine.map.player.start_sector;
 
             window.addEventListener('keyup', function(event) {Key.onKeyup(event);}, false);
             window.addEventListener('keydown', function(event) {Key.onKeydown(event);}, false);
             //window.addEventListener('keypress', function(event) {alert('wtf')}, false);
 
-            Game.frameTimer = window.setInterval(Render, 1000 / Game.fps);
+            Engine.frameTimer = window.setInterval(Render, 1000 / Engine.fps);
 
             Render();
 
@@ -172,7 +163,7 @@
 
 
 
-        var sector = Game.map.sectors[sectorId];
+        var sector = Engine.map.sectors[sectorId];
         //console.log("Rendering sector "+sector);
 
         for (var p=0; p<sector.walls.length; p++)
@@ -183,8 +174,8 @@
             var wall_colour = '#0000ff';
             if (wall.portalTo != -1) wall_colour = '#ff0000';
 
-            var vx1 = Game.map.vertices[wall.p1].x, vy1 = Game.map.vertices[wall.p1].y;
-            var vx2 = Game.map.vertices[wall.p2].x, vy2 = Game.map.vertices[wall.p2].y;
+            var vx1 = Engine.map.vertices[wall.p1].x, vy1 = Engine.map.vertices[wall.p1].y;
+            var vx2 = Engine.map.vertices[wall.p2].x, vy2 = Engine.map.vertices[wall.p2].y;
 
             vx1 -= player.x; vy1 -= player.y;
             vx2 -= player.x; vy2 -= player.y;
@@ -228,7 +219,7 @@
             var rel_ceil_height = sector.ceiling_height - player.z;
 
             // we = wall edge
-            var we = Game.scene.getEdge(player, r1, r2, rel_floor_height, rel_ceil_height);
+            var we = Engine.scene.getEdge(player, r1, r2, rel_floor_height, rel_ceil_height);
 
 
             if (we.x1 >= we.x2) continue; // wall is not facing us, don't draw
@@ -239,14 +230,14 @@
 
             if (wall.portalTo != -1)
             {
-                var nextSector = Game.map.sectors[wall.portalTo];
+                var nextSector = Engine.map.sectors[wall.portalTo];
 
                 next_rel_floor_height = nextSector.floor_height - player.z;
                 next_rel_ceil_height = nextSector.ceiling_height - player.z;
 
             }
 
-            var pe = Game.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
+            var pe = Engine.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
 
             //if (wall.portalTo != -1)
             //    line(we.x1, pe.y1a, we.x2, pe.y2a, '#000000');
@@ -355,7 +346,7 @@
 
             if (sectorId == 0 && p==3) {
                 var wall_size = Math.abs(sector.floor_height - sector.ceiling_height);
-                console.log(wall.width+" x "+wall_size);
+                //console.log(wall.width+" x "+wall_size);
             }
 
 
@@ -372,74 +363,6 @@
 
 
 
-
-            /**
-                 x1y1a ---- x2y2a   1 A       B
-                  |           |
-                  |           |
-                 x1y1b ---- x2y2b   2
-            **/
-
-
-            //line(we.x1, we.y1a, we.x1, we.y1b, wall_colour);
-            //line(we.x2, we.y2a, we.x2, we.y2b, wall_colour);
-
-            //horz
-            //line(we.x1, we.y1a, we.x2, we.y2a, wall_colour);
-            //line(we.x1, we.y1b, we.x2, we.y2b, wall_colour);
-
-            //vertical edge sides of wall
-
-
-            /**
-            if (1 == 0) {
-                var x1 = (-r1.x / r1.z) * focal_length;
-                var x2 = (-r2.x / r2.z) * focal_length;
-
-                var w_width = (x2 - x1) + 1;
-
-                var y_bottom = edge1.y_bottom;
-                var dy_bottom = (edge2.y_bottom - edge1.y_bottom) / w_width;
-
-                var w_height = edge1.height;
-                var dw_height = (edge2.height - edge1.height) / w_width;
-
-                for (var wx = x1; wx < w_width; wx++) {
-                    y_bottom += dy_bottom;
-                    w_height += dw_height;
-                }
-                line(x1, edge1.y_bottom - edge1.height, x2, edge2.y_bottom - edge2.height,wall_colour);
-                line(x1, edge1.y_bottom, x2, edge2.y_bottom,wall_colour);
-
-                line(x2, edge2.y_bottom - edge2.height, x2, edge2.y_bottom,wall_colour);
-                line(x1, edge1.y_bottom - edge1.height, x1, edge1.y_bottom,wall_colour);
-
-
-                ///** WIREFRAME MODE -
-
-                var steps = x2-x1;
-                var ytop1 = edge2.y_bottom - edge2.height;
-                var ybot1 = edge2.y_bottom;
-
-                var ytop2 = edge1.y_bottom - edge1.height;
-                var ybot2 = edge1.y_bottom;
-
-                var ytopinc = (ytop2 - ytop1) / steps;
-                var ybotinc = (ybot2 - ybot1) / steps;
-
-                var ys = ytop1, ye = ybot1;
-
-                for (var x=x1; x<x2; x++)
-                {
-                    //line (x, ys, x, ye, wall_colour);
-
-                    ys += ytopinc;
-                    ye += ybotinc;
-                }
-            }
-            **/
-
-
         }
 
     }
@@ -447,7 +370,7 @@
     function v_texture(tex, x, y1, y2, wall_height, wall_width) {
         //console.log(wall_width, wall_height);
         return;
-        var tex_obj = Game.textures.textures[tex];
+        var tex_obj = Engine.textures.textures[tex];
         var tex_u_virtual = 0;
         var tex_width = tex_obj.w;
         var tex_height = tex_obj.h;
@@ -490,7 +413,7 @@
 
         move_player(player.vx, player.vy);
 
-        player.z = Game.map.sectors[player.sector].floor_height + player.height;
+        player.z = Engine.map.sectors[player.sector].floor_height + player.height;
 
         RenderSector(0, SCREEN_WIDTH-1, player.sector);
 
@@ -644,8 +567,9 @@
         status_write("<b>Player</b>");
         status_write("X: "+player.x.toFixed(2)+", Y: "+player.y.toFixed(2)+", Z: "+player.z);
         status_write("Angle: "+player.v.toFixed(2));
+        status_write("Pitch: "+player.pitch.toFixed(2));
         status_write("Sector: "+player.sector);
-        var sector = Game.map.sectors[player.sector];
+        var sector = Engine.map.sectors[player.sector];
         var numportals = 0;
 
         for (var w=0; w<sector.walls.length; w++)
@@ -671,7 +595,7 @@
     {
         var px = player.x, py = player.y;
 
-        var sector = Game.map.sectors[player.sector];
+        var sector = Engine.map.sectors[player.sector];
 
         for (var s=0; s<sector.walls.length; s++)
         {
@@ -680,12 +604,12 @@
             if (wall.portalTo >= 0)
             {
                 if (intersect_box(px, py, px+dx, py+dy,
-                                Game.map.vertices[wall.p1].x, Game.map.vertices[wall.p1].y,
-                                Game.map.vertices[wall.p2].x, Game.map.vertices[wall.p2].y))
+                                Engine.map.vertices[wall.p1].x, Engine.map.vertices[wall.p1].y,
+                                Engine.map.vertices[wall.p2].x, Engine.map.vertices[wall.p2].y))
                 {
                     if (point_side(px+dx, py+dy,
-                                    Game.map.vertices[wall.p1].x, Game.map.vertices[wall.p1].y,
-                                    Game.map.vertices[wall.p2].x, Game.map.vertices[wall.p2].y)
+                                    Engine.map.vertices[wall.p1].x, Engine.map.vertices[wall.p1].y,
+                                    Engine.map.vertices[wall.p2].x, Engine.map.vertices[wall.p2].y)
                             < 0)
                     {
                         player.sector = wall.portalTo;
@@ -706,7 +630,7 @@
     function move()
     {
         var dx = 0, dy = 0;
-        var speed =1;
+        var speed =10;
 /*
         if (e.keyCode == 189) // '-'
             player.height -=2;
@@ -751,6 +675,16 @@
             dy = -(speed * Math.sin(rads));
         }
 
+        if (Key.isDown(Key.Q))
+        {
+            player.pitch -= 25;
+        }
+
+        if (Key.isDown(Key.A))
+        {
+            player.pitch += 25;
+        }
+
 
         player.vx = dx;
         player.vy = dy;
@@ -771,7 +705,7 @@
 
     function collision(dx, dy)
     {
-        var sector = Game.map.sectors[player.sector];
+        var sector = Engine.map.sectors[player.sector];
 
         var px = player.x, py = player.y;
 
@@ -780,18 +714,18 @@
             var wall = sector.walls[s];
 
             if (intersect_box(px, py, px + dx, py + dy,
-                            Game.map.vertices[wall.p1].x, Game.map.vertices[wall.p1].y,
-                            Game.map.vertices[wall.p2].x, Game.map.vertices[wall.p2].y))
+                            Engine.map.vertices[wall.p1].x, Engine.map.vertices[wall.p1].y,
+                            Engine.map.vertices[wall.p2].x, Engine.map.vertices[wall.p2].y))
             {
 
                 if (point_side(px + dx, py + dy,
-                                Game.map.vertices[wall.p1].x, Game.map.vertices[wall.p1].y,
-                                Game.map.vertices[wall.p2].x, Game.map.vertices[wall.p2].y) < 0)
+                                Engine.map.vertices[wall.p1].x, Engine.map.vertices[wall.p1].y,
+                                Engine.map.vertices[wall.p2].x, Engine.map.vertices[wall.p2].y) < 0)
                 {
 
 
-                    var xd = Game.map.vertices[wall.p2].x - Game.map.vertices[wall.p1].x;
-                    var yd = Game.map.vertices[wall.p2].y - Game.map.vertices[wall.p1].y;
+                    var xd = Engine.map.vertices[wall.p2].x - Engine.map.vertices[wall.p1].x;
+                    var yd = Engine.map.vertices[wall.p2].y - Engine.map.vertices[wall.p1].y;
 
                     var dx2 = xd * (dx*xd + dy*yd) / (xd*xd + yd*yd);
                     var dy2 = yd * (dx*xd + dy*yd) / (xd*xd + yd*yd);
@@ -821,6 +755,8 @@
         DOWN: 40,
         MINUS: 189,
         PLUS: 187,
+        A: 65,
+        Q: 81,
 
         isDown: function(keyCode) {
             return this._pressed[keyCode];
