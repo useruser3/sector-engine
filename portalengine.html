@@ -244,6 +244,11 @@
 
             var isteps = (we.x2 - we.x1) + 1;
 
+            var tu_start = 0;
+            var tu_end = Math.floor(wall.width)-1;
+
+
+
             var ix1 = Math.max(we.x1, x_clip_start);
             var ix2 = Math.min(we.x2, x_clip_end);
 
@@ -253,6 +258,7 @@
             var yb_interp = new Interpolator(we.y1b, we.y2b, isteps, start_at);
             var next_ya_interp = new Interpolator(pe.y1a, pe.y2a, isteps, start_at);
             var next_yb_interp = new Interpolator(pe.y1b, pe.y2b, isteps, start_at);
+            var tu_interp = new Interpolator(tu_start, tu_end, isteps, start_at);
 
             if (wall.portalTo >= 0)
             {
@@ -324,9 +330,11 @@
                 } else {
 
                     if (sectorId == 0 && p==3) {
+                        var tex_u = tu_interp.next();
                         var wall_size = Math.abs(sector.floor_height - sector.ceiling_height);
+                        //if (x == ix1) console.log("wallsize=",wall_size, 'wallwidth=',wall.width);
 
-                        v_texture(0, x, ya, yb, wall_size, wall.width);
+                        v_texture(0, x, ya, yb, tex_u, wall_size, wall.width);
 
                     } else {
 
@@ -367,28 +375,16 @@
 
     }
 
-    function v_texture(tex, x, y1, y2, wall_height, wall_width) {
-        //console.log(wall_width, wall_height);
-        return;
+    function v_texture(tex, x, y1, y2, texture_u, wall_height, wall_width) {
+
         var tex_obj = Engine.textures.textures[tex];
-        var tex_u_virtual = 0;
         var tex_width = tex_obj.w;
         var tex_height = tex_obj.h;
         var wall_pixels = y2 - y1;
-
-        var tex_repeats = wall_height / tex_height;
-
-        if (tex_repeats <= 1)
-        {
-
-        } else if (tex_repeats >1)
-        {
-            buffer_context.drawImage(tex_obj.img, final_u, 0, 1, tex_obj.h, lx, start, 1, icur_height);
+        var tu = texture_u % tex_width;
 
 
-        }
-
-
+        buffer_context.drawImage(tex_obj.img, tu, 0, 1, wall_height % tex_obj.h, x, y1, 1, Math.abs(y2-y1)+1);
 
 
     }
@@ -409,7 +405,7 @@
     function Render()
     {
         prepareFrame();
-        move();
+        handle_input();
 
         move_player(player.vx, player.vy);
 
@@ -627,7 +623,7 @@
     }
 
 
-    function move()
+    function handle_input()
     {
         var dx = 0, dy = 0;
         var speed =10;

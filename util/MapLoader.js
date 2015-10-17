@@ -118,8 +118,8 @@ function Map()
             this.sectors[t].extract_walls(this.vertices);
 
             this.sectors[t].height *= sf * 0.1;
-            this.sectors[t].floor_height *= sf  *-3;
-            this.sectors[t].ceiling_height *= sf *-3 ;
+            this.sectors[t].floor_height *= sf  *-0.1;
+            this.sectors[t].ceiling_height *= sf *-0.1 ;
 
           //  console.log("***** SECTOR *****");
             for (var w=0; w<this.sectors[t].walls.length; w++)
