@@ -10,6 +10,7 @@
     <script src="./util/MapLoader.js"></script>
     <script src="./util/Textures.js"></script>
     <script src="./util/Player.js"></script>
+    <script src="./renderer/spans.js"></script>
 
 </head>
 <body>
@@ -189,7 +190,9 @@
     {
         var sector = Engine.map.sectors[sectorId];
 
-        var sector_floors = [];
+        //var sector_floors = [];
+        var sector_span = new VerticalSpan();
+
 
         for (var p=0; p<sector.walls.length; p++)
         {
@@ -296,8 +299,9 @@
 
                 //line(x, cyb+1, x, clip_window[x].bottom, '#000'); // floor
 
-                sector_floors[x] = {y1: Math.round(cyb), y2: Math.floor(clip_window[x].bottom), hei: rel_floor_height};
+                sector_span.add(x,  Math.round(cyb), Math.floor(clip_window[x].bottom), rel_floor_height);
 
+                //sector_floors[x] = {y1: Math.round(cyb), y2: Math.floor(clip_window[x].bottom), hei: rel_floor_height};
 
                 // Portal wall
                 if (wall.portalTo >= 0 )
@@ -343,33 +347,9 @@
                         line (x, clamp(ya, clip_window[x].top, clip_window[x].bottom), x, clamp(yb, clip_window[x].top, clip_window[x].bottom), wall_colour);
                     }
 
-                    //clip_window[x].top    = clamp()
-                    //clip_window[x].bottom = clamp(Math.min(yb, cyb), 0, clip_window[x].bottom);
                 }
 
             }
-
-
-
-            /*
-             for (var floor_y=cyb+1; floor_y<=clip_window[x].bottom; floor_y++)
-             {
-             var hei = rel_floor_height;
-             var floor = Engine.scene.unProjectScreen(player, hei, x, floor_y);
-
-             var tu = Math.floor(floor.x % floor_tex2_width);
-             var tv = Math.floor(floor.z % floor_tex2_width);
-
-             var c = floor_tex2[tu][tv];
-
-             var index = (x + floor_y * SCREEN_WIDTH) * 4;
-             buffer_data.data[index + 0] = c.r;
-             buffer_data.data[index + 1] = c.g;
-             buffer_data.data[index + 2] = c.b;
-             buffer_data.data[index + 3] = 255;
-
-             }*/
-
 
             //
             // This wall was a portal, recursively render the next sector seen through this portal
@@ -379,19 +359,79 @@
                RenderSector(ix1, ix2, wall.portalTo);
             }
 
-
-
         }
 
-        RenderPlanes(sector_floors);
+        // draw floor. should do these all at once at end of frame.
+        var horz = sector_span.makeHorz();
+        RenderSpans(horz);
 
+    }
+
+    function RenderSpans(spans)
+    {
+
+        buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        for (var t=0; t<spans.length; t++)
+        {
+            var left = Engine.scene.unProjectScreen(player, spans[t].h, spans[t].x1, spans[t].y);
+            var right = Engine.scene.unProjectScreen(player, spans[t].h, spans[t].x2, spans[t].y);
+
+            var isteps = (spans[t].x2 - spans[t].x1) + 1;
+
+            var MX = new Interpolator(left.x, right.x, isteps);
+            var MZ = new Interpolator(left.z, right.z, isteps);
+
+            var y = spans[t].y;
+            for (var x=spans[t].x1; x<=spans[t].x2; x++)
+            {
+
+                var mx = MX.next();
+                var mz = MZ.next();
+                //console.log(mx, mz);
+
+                var tu = Math.floor(mx % floor_tex2_width);
+                var tv = Math.floor(mz % floor_tex2_width);
+
+                if (isNaN(tu)){
+                    console.log("NAN! mx/mz = ", mx, mz, left, right, isteps, spans[t].x1, spans[t].x2);
+                }
+                var c = floor_tex2[tu][tv];
+
+                var index = (x + y * SCREEN_WIDTH) * 4;
+                buffer_data.data[index + 0] = c.r;
+                buffer_data.data[index + 1] = c.g;
+                buffer_data.data[index + 2] = c.b;
+                buffer_data.data[index + 3] = 255;
+
+            }
+        }
+
+        buffer_context.putImageData(buffer_data, 0, 0);
 
     }
 
 
-    function RenderPlanes(sector_floors)
+    function RenderPlanes2(sector_span)
     {
+        var sector_floors = sector_span.columns;
+
         buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        var x_start = -1, x_end = -1;
+
+        for (var s=0; s<SCREEN_WIDTH; s++)
+        {
+            if (sector_floors[s] != undefined)
+                if (x_start == -1) x_start = s;
+            if (sector_floors[(SCREEN_WIDTH-1)-s] != undefined)
+                if (x_end == -1) x_end = s;
+
+        }
+
+        console.log("Floor: ",x_start,"->",x_end);
+
+
 
         for (var fx = 0; fx<SCREEN_WIDTH; fx++)
         {
@@ -401,9 +441,9 @@
                 //line(fx, wall_floor[fx].y1, fx, wall_floor[fx].y2, '#8f0' );
                 //console.log(wall_floor[fx].y1, wall_floor[fx].y2);
 
-                var hei = sector_floors[fx].hei;
+                var hei = sector_floors[fx].h;
 
-                for (var fy=sector_floors[fx].y1, fy2=sector_floors[fx].y2; fy<=fy2; fy++)
+                for (var fy=sector_floors[fx].yt, fy2=sector_floors[fx].yb; fy<=fy2; fy++)
                 {
                     var floor = Engine.scene.unProjectScreen(player, hei, fx, fy);
 
@@ -456,13 +496,14 @@
 
     function Render()
     {
+
         prepareFrame();
         handle_input();
         //buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
 
         move_player(player.vx, player.vy);
 
-        player.z = Engine.map.sectors[player.sector].floor_height + player.height;
+       // player.z = Engine.map.sectors[player.sector].floor_height + player.height;
 
         RenderSector(0, SCREEN_WIDTH-1, player.sector);
        // buffer_context.putImageData(buffer_data, 0, 0);
@@ -696,12 +737,12 @@
 
         if (Key.isDown(Key.MINUS))
         {
-            player.z -=50;
+            player.z -=5;
         }
 
         if (Key.isDown(Key.PLUS))
         {
-            player.z +=50;
+            player.z +=5;
         }
 
         if (Key.isDown(Key.LEFT))
@@ -727,12 +768,12 @@
 
         if (Key.isDown(Key.Q))
         {
-            player.pitch -= 25;
+            player.pitch -= 2;
         }
 
         if (Key.isDown(Key.A))
         {
-            player.pitch += 25;
+            player.pitch += 2;
         }
 
 

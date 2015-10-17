@@ -15,6 +15,7 @@ function Interpolator(from, to, steps, start)
 
     this.next = function()
     {
+        if (ss==1) return from;
         if (s++>=ss) return val;
         val += inc;
         return val;

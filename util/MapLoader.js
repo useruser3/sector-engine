@@ -164,6 +164,8 @@ function Map()
         this.player.start_ang = reader.getInt16(16, true);
         this.player.start_sector = reader.getInt16(18, true);
 
+
+
         var num_sectors = reader.getInt16(20, true);
 
         this.sectors = [];
