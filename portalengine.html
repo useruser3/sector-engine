@@ -26,9 +26,15 @@
 </body>
 <script>
 
+
+    var itest = new Interpolator(0, 113, 842, 286);
+
+    console.log(itest.next());
+
+
     var SCREEN_WIDTH = 640;
     var SCREEN_HEIGHT = 480;
-    var SCREEN_FOV = 60;
+    var SCREEN_FOV = 55;
 
     document.getElementById('screen').width = SCREEN_WIDTH;
     document.getElementById('screen').height = SCREEN_HEIGHT;
@@ -125,7 +131,7 @@
         var x = vxs(vxs(x1, y1, x2, y2),  (x1) - (x2), vxs(x3, y3, x4, y4), (x3) - (x4)) / vxs((x1) - (x2), (y1) - (y2), (x3) - (x4), (y3) - (y4));
         var y = vxs(vxs(x1, y1, x2, y2), (y1) - (y2), vxs(x3, y3, x4, y4), (y3) - (y4)) / vxs((x1) - (x2), (y1) - (y2), (x3) - (x4), (y3) - (y4));
         return {x: x, y: y};
-;    }
+    }
 
     function intersect(x1, y1, x2, y2, x3, y3, x4, y4)
     {
@@ -137,6 +143,18 @@
 
         return {x: cx, y: cy};
     }
+
+    function line_intersection(x1,y1,x2,y2,x3, y3, x4,y4)
+    {
+            var d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+            if (d == 0) return null;
+
+            var xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d;
+            var yi = ((y3-y4)*(x1*y2-y1*x2)-(y1-y2)*(x3*y4-y3*x4))/d;
+
+            return {x: xi, y:yi};
+    }
+
 
     function intersect_box(x0,y0, x1,y1, x2,y2, x3,y3)
     {
@@ -186,6 +204,10 @@
         }
     }
 
+    var SectorSpanList = [];
+
+
+
     function RenderSector(x_clip_start, x_clip_end, sectorId)
     {
         var sector = Engine.map.sectors[sectorId];
@@ -213,33 +235,55 @@
             // completely off player's fov, move to next...
             if (r1.z <=0 && r2.z <=0) continue;
 
-            var cp1 = intersect2(r1.x, r1.z, r2.x, r2.z, -0.0001, 0.0001, -20, 5);
-            var cp2 = intersect2(r1.x, r1.z, r2.x, r2.z,  0.0001, 0.0001, 20, 5);
+            var nearz=7, farz = 5, nearside = 1e-5, farside = 5;
 
-            if (r1.z <= 0.0001)
+            if (r1.z <=nearz|| r2.z <=nearz)
             {
-                if (cp1.y > 0) {
-                    r1.x = cp1.x;
-                    r1.z = cp1.y;
-                } else {
-                    r1.x = cp2.x;
-                    r1.z = cp2.y;
+                var cp1 = line_intersection(r1.x, r1.z, r2.x, r2.z, -nearside,nearz, -farside,farz);
+                var cp2 = line_intersection(r1.x, r1.z, r2.x, r2.z,  nearside,nearz,  farside,farz);
+
+                var clipped = false;
+
+                if (r1.z < nearz) {
+                //clipped =true;
+                    if (p==4)  status_write("line was clipped1");
+                    if (cp1.y > 0) {
+                        r1.x = cp1.x;
+                        r1.z = cp1.y;
+                    } else {
+                        r1.x = cp2.x;
+                        r1.z = cp2.y;
+                    }
+                }
+
+                if (r2.z < nearz) {
+                   // clipped = true;
+                    if (p==4) status_write("line was clipped2");
+                    if (cp1.y > 0) {
+                        r2.x = cp1.x;
+                        r2.z = cp1.y;
+                    } else {
+                        r2.x = cp2.x;
+                        r2.z = cp2.y;
+                    }
                 }
             }
 
-            if (r2.z <= 0.0001)
-            {
-                if (cp1.y > 0) {
-                    r2.x = cp1.x;
-                    r2.z = cp1.y;
-                } else {
-                    r2.x = cp2.x;
-                    r2.z = cp2.y;
-                }
+               //if (clipped) console.log("wall was clipped!");
+/*
+            if ( r1.z <=0 || r2.z <=0) {
+                var nearz = 1e-4, farz = 20, nearside = 1e-5, farside = 20;
+
+                var cp1 = Clip2d(r1.x, r1.z, r2.x, r2.z, 0, 0, 100, 100);
+
+                if (cp1.clipped && p==4) status_write("Line was clipped 2d");
+
+                r1.x = cp1.x1;
+                r1.z = cp1.y1;
+                r2.x = cp1.x2;
+                r2.z = cp1.y2;
             }
-
-
-
+*/
             var rel_floor_height = sector.floor_height - player.z;
             var rel_ceil_height = sector.ceiling_height - player.z;
 
@@ -265,13 +309,14 @@
             var pe = Engine.scene.projectPortalSector(we, r1, r2, next_rel_floor_height, next_rel_ceil_height);
 
 
+            var ix1 = Math.max(we.x1, x_clip_start);
+            var ix2 = Math.min(we.x2, x_clip_end);
             var isteps = (we.x2 - we.x1) + 1;
 
             var tu_start = 0;
             var tu_end = Math.floor(wall.width)-1;
+;
 
-            var ix1 = Math.max(we.x1, x_clip_start);
-            var ix2 = Math.min(we.x2, x_clip_end);
 
             var start_at = Math.abs(we.x1 - ix1);
 
@@ -281,8 +326,16 @@
             var next_yb_interp = new Interpolator(pe.y1b, pe.y2b, isteps, start_at);
             var tu_interp = new Interpolator(tu_start, tu_end, isteps, start_at);
 
+            //var tex_u = 0;
 
+            if (p==4) status_write("tstart="+tu_start+", tend="+tu_end+", ist="+isteps+", start="+start_at);
 
+            if (p==4){
+                //if (isteps > 10000) {
+                    status_write("r1,r2; " + r1.x.toFixed(3) + ", " + r1.z.toFixed(3) + ", " + r2.x.toFixed(3) + ", " + r2.z.toFixed(3));
+                    status_write("we; "+we.x1.toFixed(3)+", "+we.x2.toFixed(3));
+               // }
+            }
 
             for (var x=ix1; x<ix2; x++)
             {
@@ -335,8 +388,12 @@
 
                 } else {
 
-                    if ( sectorId == 0 && p==3) {
+                    if ( sectorId == 0 && p==4) {
                         var tex_u = tu_interp.next();
+                        if (x == ix1) status_write("First u="+tex_u);
+                        if (x >= ix2-1) status_write("Last u="+tex_u);
+                        //console.log(tex_u);
+                        //tex_u ++;
                         var wall_size = Math.abs(sector.floor_height - sector.ceiling_height);
                         //if (x == ix1) console.log("wallsize=",wall_size, 'wallwidth=',wall.width);
 
@@ -356,22 +413,18 @@
             //
             if (ix2 >= ix1 && wall.portalTo != -1)
             {
-               RenderSector(ix1, ix2, wall.portalTo);
+                SectorSpanList.push(RenderSector(ix1, ix2, wall.portalTo));
             }
 
         }
 
-        // draw floor. should do these all at once at end of frame.
-        var horz = sector_span.makeHorz();
-        RenderSpans(horz);
+        //return floor data
+        return sector_span;
 
     }
 
     function RenderSpans(spans)
     {
-
-        buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
-
         for (var t=0; t<spans.length; t++)
         {
             var left = Engine.scene.unProjectScreen(player, spans[t].h, spans[t].x1, spans[t].y);
@@ -407,75 +460,50 @@
             }
         }
 
-        buffer_context.putImageData(buffer_data, 0, 0);
-
     }
 
 
-    function RenderPlanes2(sector_span)
-    {
-        var sector_floors = sector_span.columns;
 
-        buffer_data = buffer_context.getImageData(0,0,SCREEN_WIDTH, SCREEN_HEIGHT);
-
-        var x_start = -1, x_end = -1;
-
-        for (var s=0; s<SCREEN_WIDTH; s++)
-        {
-            if (sector_floors[s] != undefined)
-                if (x_start == -1) x_start = s;
-            if (sector_floors[(SCREEN_WIDTH-1)-s] != undefined)
-                if (x_end == -1) x_end = s;
-
-        }
-
-        console.log("Floor: ",x_start,"->",x_end);
-
-
-
-        for (var fx = 0; fx<SCREEN_WIDTH; fx++)
-        {
-
-            if (sector_floors[fx])
-            {
-                //line(fx, wall_floor[fx].y1, fx, wall_floor[fx].y2, '#8f0' );
-                //console.log(wall_floor[fx].y1, wall_floor[fx].y2);
-
-                var hei = sector_floors[fx].h;
-
-                for (var fy=sector_floors[fx].yt, fy2=sector_floors[fx].yb; fy<=fy2; fy++)
-                {
-                    var floor = Engine.scene.unProjectScreen(player, hei, fx, fy);
-
-                    var tu = Math.floor(floor.x % floor_tex2_width);
-                    var tv = Math.floor(floor.z % floor_tex2_width);
-
-                    var c = floor_tex2[tu][tv];
-
-                    var index = (fx + fy * SCREEN_WIDTH) * 4;
-                    buffer_data.data[index + 0] = c.r;
-                    buffer_data.data[index + 1] = c.g;
-                    buffer_data.data[index + 2] = c.b;
-                    buffer_data.data[index + 3] = 255;
-
-                }
-            }
-        }
-
-        buffer_context.putImageData(buffer_data, 0, 0);
-
-    }
 
     function v_texture(tex, x, y1, y2, texture_u, wall_height, wall_width) {
 
         var tex_obj = Engine.textures.textures[tex];
         var tex_width = tex_obj.w;
-        var tex_height = tex_obj.h;
+
         var wall_pixels = y2 - y1;
-        var tu = texture_u % tex_width;
+        var tu = Math.floor(texture_u) % tex_width;
+
+        var tex_height = tex_obj.h;
+        var wall_units = wall_height;
 
 
-        buffer_context.drawImage(tex_obj.img, tu, 0, 1, wall_height % tex_obj.h, x, y1, 1, Math.abs(y2-y1)+1);
+        var tex_repeats = wall_units / tex_height;
+
+        if (tex_repeats > 1)
+        {
+            var tex_whole_repeats = Math.floor(tex_repeats);
+            var tex_fraction = wall_units % tex_height;
+            var wall_scale_ratio = wall_pixels / wall_units; // wall's worldunits -> screenpixels scale ratio
+
+            var tex_one_scaled = Math.round(wall_scale_ratio * tex_height);
+
+            var remainder = wall_pixels - (tex_one_scaled * tex_whole_repeats);
+
+
+            for (var vt=0; vt<tex_whole_repeats; vt++)
+            {
+               buffer_context.drawImage(tex_obj.img, tu, 0, 1, tex_height, x, y1 + (vt*tex_one_scaled), 1, tex_one_scaled);
+            }
+
+
+
+
+
+        } else {
+
+            buffer_context.drawImage(tex_obj.img, tu, 0, 1, wall_height, x, y1, 1, Math.abs(y2-y1)+1);
+        }
+
 
 
     }
@@ -485,6 +513,7 @@
 
     function prepareFrame ()
     {
+        SectorSpanList = [];
         for (var t=0; t<SCREEN_WIDTH;t++) {
             //vstart_bottom[t] = SCREEN_HEIGHT-1;
             //vstart_top[t] = 0;
@@ -496,6 +525,7 @@
 
     function Render()
     {
+        status();
 
         prepareFrame();
         handle_input();
@@ -503,78 +533,20 @@
 
         move_player(player.vx, player.vy);
 
-       // player.z = Engine.map.sectors[player.sector].floor_height + player.height;
+        // player.z = Engine.map.sectors[player.sector].floor_height + player.height;
+        SectorSpanList.push(RenderSector(0, SCREEN_WIDTH - 1, player.sector));
 
-        RenderSector(0, SCREEN_WIDTH-1, player.sector);
-       // buffer_context.putImageData(buffer_data, 0, 0);
+        buffer_data = buffer_context.getImageData(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+        for (var t = 0; t < SectorSpanList.length; t++) {
+            RenderSpans(SectorSpanList[t].makeHorz());
+        }
+        buffer_context.putImageData(buffer_data, 0, 0);
 
-        status();
+        // buffer_context.putImageData(buffer_data, 0, 0);
+
     }
 
-    var ldraw_buffer = [];
 
-
-    function lineb(x1, y1, x2, y2, col)
-    {
-        if (!col) col = '#0000ff';
-        var out_bounds = false;
-        if (x1 < 0 || x2 < 0 || x1 >= SCREEN_WIDTH || x2 >= SCREEN_WIDTH) out_bounds = true;
-        if (y1 < 0 || y2 < 0 || y1 >= SCREEN_HEIGHT || y2 >= SCREEN_HEIGHT) out_bounds = true;
-
-        if (out_bounds)
-        {
-            var lc = Clip2d(x1, y1, x2, y2, 0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1);
-            if (!lc.visible) return;
-
-            x1 = lc.x1;
-            y1 = lc.y1;
-            x2 = lc.x2;
-            y2 = lc.y2;
-
-        }
-
-        ldraw_buffer.push({x1:x1, y1:y1, x2:x2, y2:y2, col:col});
-/*
-        buffer_context.beginPath();
-        buffer_context.moveTo(x1, y1);
-        buffer_context.lineTo(x2, y2);
-        buffer_context.lineWidth = 1;
-        buffer_context.strokeStyle = col;
-        buffer_context.stroke();*/
-    }
-
-    function line_flush()
-    {
-
-
-        if (ldraw_buffer.length  <1 ) return;
-
-        for (var t=0; t<ldraw_buffer.length;t++)
-        {
-            setTimeout(function(){
-                console.log(Date.now());
-                /*
-                var l = ldraw_buffer[0];
-                var x1 = l.x1, y1 = l.y1;
-                var x2 = l.x2, y2 = l.y2;
-                var col = l.col;
-
-                ldraw_buffer.splice(0,1);
-
-                buffer_context.beginPath();
-                buffer_context.moveTo(x1, y1);
-                buffer_context.lineTo(x2, y2);
-                buffer_context.lineWidth = 1;
-                buffer_context.strokeStyle = col;
-                buffer_context.stroke();*/
-
-            }, 10)
-
-        }
-
-        ldraw_buffer = [];
-
-    };
 
     function line(x1, y1, x2, y2, col)
     {

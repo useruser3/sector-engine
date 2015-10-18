@@ -13,8 +13,16 @@ function PerspectiveProjector(screen_width, screen_height, fov)
     this.focal_length = this.w2 / Math.tan((fov * (Math.PI /180))/2);
     this.vfov = 2 * Math.atan(this.h2 / this.focal_length);
 
+
+
+
+    //this.hfov = 1.0 * 0.73 * (this.height / this.width);
+    //this.vfov = 1.0 * 0.2
+
     this.getEdge = function(player, r1, r2, yceil, yfloor)
     {
+        //this.vfov = this.hfov;
+
         // pitch angle for lookup/down
         var radv = player.pitch * Math.PI / 180;
 
