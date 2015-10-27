@@ -60,13 +60,17 @@
     {
         Engine.scene = new PerspectiveProjector(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_FOV);
 
+        Engine.lights = [];
         Engine.map = new Map();
         Engine.fps = 30;
 
         Engine.textures = new TextureManager();
         Engine.textures.add(0, './gfx/brick.png');
+        Engine.textures.add(1, './gfx/lightmask.png');
 
-        Engine.map.load('./maps/alantest5.map', 0.025, function(){
+        Engine.lights.push(new PointLight(865, 918, 75, 64, 1));
+
+            Engine.map.load('./maps/imposs.map', 0.025, function(){
 
             player = new Player();
 
@@ -91,6 +95,13 @@
             return Math.min(Math.max(v, min), max);
         };
 
+    }
+
+    function PointLight(lx, ly, lz, sze, tid)
+    {
+        this.x=0||lx, this.y=0||ly, this.z=0||lz;
+        this.size=32||sze;
+        this.tex_id = 0 || tid;
     }
 
     function Rotate2d(x, y, angle)
@@ -326,6 +337,42 @@
             var next_yb_interp = new Interpolator(pe.y1b, pe.y2b, isteps, start_at);
             var tu_interp = new Interpolator(tu_start, tu_end, isteps, start_at);
 
+            var drwlgt = {};
+
+            if (Engine.lights[0])
+            {
+                var l = Engine.lights[0];
+
+                var lx1 = l.x, ly1 = l.y;
+
+                lx1 -= player.x, ly1 -= player.y;
+                //lx2 -= player.x, ly2 -= player.y;
+
+                var r1 = Rotate2d(lx1, ly1, player.v);
+                //var r2 = Rotate2d(vx2, vy2, player.v);
+
+
+                var lpt = Engine.scene.projectPoint(player, r1.x, r1.z, (l.z)-player.z, (l.z- l.size)-player.z);
+
+                //if (p==0)
+                //console.log(lx1, ly1, r1, lpt);
+                drwlgt = {x: lpt.px, ya: lpt.py1, yb: lpt.py2};
+
+                /**
+                 *
+                 *  lighting process:
+
+                    get visible lights
+                    rotate and project point light sources.
+                    if they are within 'range' of a given wall, (inv sq root), then use the point light 'size' to
+                    project light texture onto the wall with blending proportional to wall distance.
+                    do for each wall in range.
+
+                 **/
+
+
+            }
+
             //var tex_u = 0;
 
             if (p==4) status_write("tstart="+tu_start+", tend="+tu_end+", ist="+isteps+", start="+start_at);
@@ -398,6 +445,16 @@
                         //if (x == ix1) console.log("wallsize=",wall_size, 'wallwidth=',wall.width);
 
                         v_texture(0, x, ya, yb, tex_u, wall_size, wall.width);
+
+                        if (drwlgt) {
+                            buffer_context.globalCompositeOperation = 'lighter';
+                            buffer_context.globalAlpha = 0.5;
+                            if (x >= drwlgt.x)
+                                v_texture(1, x, drwlgt.ya, drwlgt.yb, tex_u, wall_size, wall.width);
+
+                            buffer_context.globalCompositeOperation = 'normal';
+                            buffer_context.globalAlpha = 1.0;
+                        }
 
                     } else {
 

@@ -54,6 +54,21 @@ function PerspectiveProjector(screen_width, screen_height, fov)
         }
     };
 
+    this.projectPoint = function(player, x,y,z1,z2)
+    {
+        var radv = player.pitch * Math.PI / 180;
+
+        var xscale1 = (this.width * this.hfov) / y;
+        var yscale1 = (this.height * this.vfov) / y;
+
+        var x1 = this.w2 + Math.floor(-x * xscale1);
+        var y1 = this.h2 + Math.floor(-Yaw(z1, y, radv) * yscale1);
+        var y2 = this.h2 + Math.floor(-Yaw(z2, y, radv) * yscale1);
+
+        return {px: x1, py1: y1, py2: y2};
+
+    };
+
     this.unProjectScreen = function(player, mapY, screenX, screenY)
     {
         var Z = mapY * this.height * this.vfov /
